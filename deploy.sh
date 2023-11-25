@@ -40,6 +40,25 @@ install -o isucon -g isucon -m 755 ./conf/env/${HOSTNAME}/env.sh /home/isucon/en
 #  sudo systemctl disable nginx.service
 #fi
 
+# PDNS
+# pdnsutil
+sudo install -o root -g root -m 644 ./conf/etc/powerdns/pdns.d/gmysql-host.conf /etc/powerdns/pdns.d/gmysql-host.conf
+
+# dist
+if [[ "$INSTANCE_NUM" == 1 ]]; then
+  sudo systemctl enable --now pdns
+else
+  sudo systemctl disable --now pdns
+fi
+ 
+# pdns
+if [[ "$INSTANCE_NUM" == 3 ]]; then
+  sudo install -o root -g _dnsdist -m 640 ./conf/etc/dnsdist/dnsdist.conf /etc/dnsdist/dnsdist.conf
+  sudo systemctl enable --now dnsdist
+else
+  sudo systemctl disable --now dnsdist
+fi
+
 # APP
 if [[ "$INSTANCE_NUM" == 2 || "$INSTANCE_NUM" == 3 ]]; then
   sudo install -o root -g root -m 644 ./conf/etc/systemd/system/isupipe-go.service /etc/systemd/system/isupipe-go.service
@@ -67,18 +86,4 @@ if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 2 ]]; then
   sudo systemctl enable --now mysql
 else
   sudo systemctl disable --now mysql.service
-fi
-
-# PDNS dist
-if [[ "$INSTANCE_NUM" == 1 ]]; then
-  sudo systemctl enable --now pdns
-else
-  sudo systemctl disable --now pdns
-fi
- 
-if [[ "$INSTANCE_NUM" == 3 ]]; then
-  sudo install -o root -g _dnsdist -m 640 ./conf/etc/dnsdist/dnsdist.conf /etc/dnsdist/dnsdist.conf
-  sudo systemctl enable --now dnsdist
-else
-  sudo systemctl disable --now dnsdist
 fi
