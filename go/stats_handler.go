@@ -238,7 +238,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 		  ), ranking_per_livestream AS (
 			SELECT livestreams.id AS id, IFNULL(ranking_score.score, 0), ROW_NUMBER() OVER w AS 'ranking' FROM livestreams
 			LEFT JOIN ranking_score ON livestreams.id = ranking_score.id WINDOW w AS (ORDER BY ranking_score.score DESC, livestreams.id DESC)
-		  ) SELECT ranking FROM ranking_per_livestream WHERE livestreams.id = ?`
+		  ) SELECT ranking FROM ranking_per_livestream WHERE id = ?`
 		if err := tx.GetContext(ctx, &rank, query, livestream.ID); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to count ranking: "+err.Error())
 		}
