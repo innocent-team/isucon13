@@ -25,20 +25,17 @@ sudo systemctl daemon-reload
 install -o isucon -g isucon -m 755 ./conf/env/${HOSTNAME}/env.sh /home/isucon/env.sh
 
 # NGINX
-#
-#if [[ "$INSTANCE_NUM" == 1 ]]; then
-#  sudo install -o root -g root -m 644 ./conf/etc/nginx/sites-available/isuconquest.conf /etc/nginx/sites-available/isuconquest.conf
-#  sudo install -o root -g root -m 644 ./conf/etc/nginx/nginx.conf /etc/nginx/nginx.conf
-#  sudo nginx -t
-#
-#  sudo systemctl restart nginx
-#  sudo systemctl enable nginx
-#fi
 
-#if [[ "$INSTANCE_NUM" != 1 ]]; then
-#  sudo systemctl stop nginx.service
-#  sudo systemctl disable nginx.service
-#fi
+if [[ "$INSTANCE_NUM" == 3 ]]; then
+  sudo install -o root -g root -m 644 ./conf/etc/nginx/sites-enabled/isupipe.conf /etc/nginx/sites-enabled/isupipe.conf
+  sudo install -o root -g root -m 644 ./conf/etc/nginx/nginx.conf /etc/nginx/nginx.conf
+  sudo nginx -t
+
+  sudo systemctl restart nginx
+  sudo systemctl enable nginx
+else
+  sudo systemctl disable --now nginx.service
+fi
 
 # PDNS
 # pdnsutil
