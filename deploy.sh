@@ -41,7 +41,7 @@ install -o isucon -g isucon -m 755 ./conf/env.sh /home/isucon/env.sh
 #fi
 
 # APP
-#if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 5 ]]; then
+if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 3 ]]; then
   pushd go
   make build
   popd
@@ -51,17 +51,17 @@ install -o isucon -g isucon -m 755 ./conf/env.sh /home/isucon/env.sh
   sleep 2
   
   sudo systemctl status isupipe-go.service --no-pager
-#else
-#  sudo systemctl disable --now isuconquest.go.service
-#fi
+else
+  sudo systemctl disable --now isupipe-go.service
+fi
 
 # MYSQL
-#if [[ "$INSTANCE_NUM" == 2 || "$INSTANCE_NUM" == 3 || "$INSTANCE_NUM" == 4 ]]; then
-#  sudo install -o root -g root -m 644 ./conf/etc/mysql/mysql.conf.d/mysqld.cnf /etc/mysql/mysql.conf.d/mysqld.cnf
-#
-#  echo "MySQL restart したいなら手動でやってね"
-##  sudo systemctl restart mysql
-#  sudo systemctl enable --now mysql
-#else
-#  sudo systemctl disable --now mysql.service
-#fi
+if [[ "$INSTANCE_NUM" == 2 ]]; then
+  sudo install -o root -g root -m 644 ./conf/etc/mysql/mysql.conf.d/mysqld.cnf /etc/mysql/mysql.conf.d/mysqld.cnf
+
+  echo "MySQL restart したいなら手動で sudo systemctl restart mysql やってね"
+#  sudo systemctl restart mysql
+  sudo systemctl enable --now mysql
+else
+  sudo systemctl disable --now mysql.service
+fi
