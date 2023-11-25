@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
-	"sort"
 	"strconv"
 
 	"github.com/hatena/godash"
@@ -224,33 +223,25 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	}
 
 	// ランク算出
-	var ranking LivestreamRanking
-	for _, livestream := range livestreams {
-		var reactions int64
-		if err := tx.GetContext(ctx, &reactions, "SELECT COUNT(*) FROM livestreams l INNER JOIN reactions r ON l.id = r.livestream_id WHERE l.id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to count reactions: "+err.Error())
+	var rank int64
+	{
+		query := `
+		WITH reaction_per_livestream AS (
+			SELECT l.id, COUNT(*) AS reaction_count FROM reactions r
+			LEFT JOIN livestreams l ON l.id = r.livestream_id GROUP BY l.id
+		  ), tip_per_livestream AS (
+			SELECT l.id, IFNULL(SUM(lc.tip), 0) AS sum_tip FROM livecomments lc
+			LEFT JOIN livestreams l ON l.id = lc.livestream_id GROUP BY l.id
+		  ), ranking_score AS (
+			SELECT reaction_per_livestream.id, (IFNULL(reaction_count, 0) + IFNULL(sum_tip, 0)) AS score FROM reaction_per_livestream
+			LEFT OUTER JOIN tip_per_livestream ON reaction_per_livestream.id = tip_per_livestream.id
+		  ), ranking_per_livestream AS (
+			SELECT livestreams.id AS id, IFNULL(ranking_score.score, 0), ROW_NUMBER() OVER w AS 'ranking' FROM livestreams
+			LEFT JOIN ranking_score ON livestreams.id = ranking_score.id WINDOW w AS (ORDER BY ranking_score.score DESC, livestreams.id DESC)
+		  ) SELECT ranking FROM ranking_per_livestream WHERE livestreams.id = ?`
+		if err := tx.GetContext(ctx, &rank, query, livestream.ID); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to count ranking: "+err.Error())
 		}
-
-		var totalTips int64
-		if err := tx.GetContext(ctx, &totalTips, "SELECT IFNULL(SUM(l2.tip), 0) FROM livestreams l INNER JOIN livecomments l2 ON l.id = l2.livestream_id WHERE l.id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to count tips: "+err.Error())
-		}
-
-		score := reactions + totalTips
-		ranking = append(ranking, LivestreamRankingEntry{
-			LivestreamID: livestream.ID,
-			Score:        score,
-		})
-	}
-	sort.Sort(ranking)
-
-	var rank int64 = 1
-	for i := len(ranking) - 1; i >= 0; i-- {
-		entry := ranking[i]
-		if entry.LivestreamID == livestreamID {
-			break
-		}
-		rank++
 	}
 
 	// 視聴者数算出
