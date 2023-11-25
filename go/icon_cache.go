@@ -21,13 +21,13 @@ var iconCache = IconCach{}
 var iconCacheMutex = sync.Mutex{}
 
 func getIconHashByIds(ctx context.Context, tx *sqlx.Tx, userIds []int64) (map[int64]string, error) {
-	hashByUserId := make(map[int64]string)
+	resHashByUserId := make(map[int64]string)
 	iconCacheMutex.Lock()
 	needFetchUserIds := []int64{}
 	for _, userId := range userIds {
 		data, ok := iconCache[userId]
 		if ok && data.createAt.Add(time.Minute*5).After(time.Now()) {
-			hashByUserId[userId] = data.hash
+			resHashByUserId[userId] = data.hash
 			continue
 		}
 		needFetchUserIds = append(needFetchUserIds, userId)
@@ -45,10 +45,11 @@ func getIconHashByIds(ctx context.Context, tx *sqlx.Tx, userIds []int64) (map[in
 				userID:   userId,
 				createAt: time.Now(),
 			}
+			resHashByUserId[userId] = hashByUserId[userId]
 		}
 	}
 
-	return hashByUserId, nil
+	return resHashByUserId, nil
 }
 
 func getIconHashById(ctx context.Context, tx *sqlx.Tx, userId int64) (string, error) {
