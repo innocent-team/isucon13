@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"sort"
@@ -92,6 +93,14 @@ func getUserStatisticsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get users: "+err.Error())
 	}
 
+	type RankingData struct {
+		userId    int64 `json:"user_id"`
+		score     int64 `json:"score"`
+		reactions int64 `json:"reactions"`
+		tips      int64 `json:"tips"`
+	}
+	rankingLog := []RankingData{}
+
 	var ranking UserRanking
 	for _, user := range users {
 		var reactions int64
@@ -119,6 +128,12 @@ func getUserStatisticsHandler(c echo.Context) error {
 			Username: user.Name,
 			Score:    score,
 		})
+		rankingLog = append(rankingLog, RankingData{
+			userId:    user.ID,
+			score:     score,
+			reactions: reactions,
+			tips:      tips,
+		})
 	}
 	sort.Sort(ranking)
 
@@ -130,6 +145,9 @@ func getUserStatisticsHandler(c echo.Context) error {
 		}
 		rank++
 	}
+
+	rankingJson, _ := json.Marshal(rankingLog)
+	c.Logger().Infof("ranking: %s", rankingJson)
 
 	// リアクション数
 	var totalReactions int64
