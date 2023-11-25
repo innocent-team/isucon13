@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/hatena/godash"
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 )
 
@@ -138,12 +140,22 @@ func getUserStatisticsHandler(c echo.Context) error {
 	}
 	// 合計視聴者数
 	var viewersCount int64
-	for _, livestream := range livestreams {
-		var cnt int64
-		if err := tx.GetContext(ctx, &cnt, "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_view_history: "+err.Error())
+	if len(livestreams) > 0 {
+		livestreamIds := godash.Map(livestreams, func(item *LivestreamModel, _ int) int64 { return item.ID })
+		query, args, err := sqlx.In("SELECT livestream_id, COUNT(*) AS cnt FROM livestream_viewers_history WHERE livestream_id IN (?)", livestreamIds)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query: "+err.Error())
 		}
-		viewersCount += cnt
+		var countPerLivestream []struct {
+			LivestreamId int64 `db:"livestream_id"`
+			Cnt          int64 `db:"cnt"`
+		}
+		if err := tx.SelectContext(ctx, &countPerLivestream, query, args...); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to query livestream_viewers_history: "+err.Error())
+		}
+		for _, livestream := range countPerLivestream {
+			viewersCount += livestream.Cnt
+		}
 	}
 
 	// お気に入り絵文字
