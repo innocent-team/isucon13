@@ -108,33 +108,13 @@ func bulkGetTagsByLivestream(ctx context.Context, db sqlx.QueryerContext, livest
 		tagIds[i] = livestreamTagModel.TagID
 	}
 
-	tagById := make(map[int64]Tag)
-	if len(tagIds) > 0 {
-		tagModels := []TagModel{}
-		query, args, err := sqlx.In("SELECT * FROM tags WHERE id IN (?)", tagIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for tags: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, db, &tagModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query tags: %w", err)
-		}
-
-		for _, tagModel := range tagModels {
-			tag := Tag{
-				ID:   tagModel.ID,
-				Name: tagModel.Name,
-			}
-			tagById[tag.ID] = tag
-		}
-	}
-
 	tagsByLivestreamId := make(map[int64][]Tag)
 	// nilにならないように空スライスを埋めておく
 	for _, livestreamModel := range livestreamModels {
 		tagsByLivestreamId[livestreamModel.ID] = make([]Tag, 0)
 	}
 	for _, livestreamTagModel := range livestreamTagModels {
-		tag := tagById[livestreamTagModel.TagID]
+		tag := *tagsAll[livestreamTagModel.TagID]
 		tagsByLivestreamId[livestreamTagModel.LivestreamID] = append(tagsByLivestreamId[livestreamTagModel.LivestreamID], tag)
 	}
 

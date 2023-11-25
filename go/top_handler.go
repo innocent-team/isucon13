@@ -22,34 +22,21 @@ type TagsResponse struct {
 	Tags []*Tag `json:"tags"`
 }
 
+var tagsResponseCache *TagsResponse
+
 func getTagHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-
-	tx, err := dbConn.BeginTxx(ctx, nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin new transaction: : "+err.Error()+err.Error())
-	}
-	defer tx.Rollback()
-
-	var tagModels []*TagModel
-	if err := tx.SelectContext(ctx, &tagModels, "SELECT * FROM tags"); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get tags: "+err.Error())
+	if tagsResponseCache != nil {
+		return c.JSON(http.StatusOK, tagsResponseCache)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
+	tags := make([]*Tag, len(tagsAll))
+	for id, tag := range tagsAll {
+		tags[id-1] = tag
 	}
-
-	tags := make([]*Tag, len(tagModels))
-	for i := range tagModels {
-		tags[i] = &Tag{
-			ID:   tagModels[i].ID,
-			Name: tagModels[i].Name,
-		}
-	}
-	return c.JSON(http.StatusOK, &TagsResponse{
+	tagsResponseCache = &TagsResponse{
 		Tags: tags,
-	})
+	}
+	return c.JSON(http.StatusOK, tagsResponseCache)
 }
 
 // 配信者のテーマ取得API
