@@ -25,6 +25,6 @@ ALTER TABLE `livestreams` auto_increment = 1;
 ALTER TABLE `users` auto_increment = 1;
 
 -- ↓以下に追加したインデックスを書く。インデックスは自分で流し込んでください
--- ALTER TABLE `livestream_tags` ADD INDEX `tag_id` (`tag_id`);
--- ALTER TABLE `reactions` ADD INDEX `livestream_id` (`livestream_id`);
--- ALTER TABLE `livecomments` ADD INDEX `livestream_id` (`livestream_id`);
+-- ALTER TABLE `livestream_tags` ADD FOREIGN KEY `tag_id` (`tag_id`) REFERENCES `tags` (`id`);
+-- ALTER TABLE `reactions` ADD FOREIGN KEY `livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+-- ALTER TABLE `livecomments` ADD FOREIGN KEY `livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
