@@ -20,7 +20,7 @@ type IconCach map[int64]IconCacheData
 var iconCache = IconCach{}
 var iconCacheMutex = sync.Mutex{}
 
-func getIconHashByIds(ctx context.Context, tx *sqlx.Tx, userIds []int64) (map[int64]string, error) {
+func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int64) (map[int64]string, error) {
 	resHashByUserId := make(map[int64]string)
 	iconCacheMutex.Lock()
 	needFetchUserIds := []int64{}
@@ -35,7 +35,7 @@ func getIconHashByIds(ctx context.Context, tx *sqlx.Tx, userIds []int64) (map[in
 	iconCacheMutex.Unlock()
 
 	if len(needFetchUserIds) > 0 {
-		hashByUserId, err := fetchIconByIds(ctx, tx, needFetchUserIds)
+		hashByUserId, err := fetchIconByIds(ctx, db, needFetchUserIds)
 		if err != nil {
 			return nil, err
 		}
@@ -52,15 +52,15 @@ func getIconHashByIds(ctx context.Context, tx *sqlx.Tx, userIds []int64) (map[in
 	return resHashByUserId, nil
 }
 
-func getIconHashById(ctx context.Context, tx *sqlx.Tx, userId int64) (string, error) {
-	hashByUserId, err := getIconHashByIds(ctx, tx, []int64{userId})
+func getIconHashById(ctx context.Context, db sqlx.QueryerContext, userId int64) (string, error) {
+	hashByUserId, err := getIconHashByIds(ctx, db, []int64{userId})
 	if err != nil {
 		return "", err
 	}
 	return hashByUserId[userId], nil
 }
 
-func fetchIconByIds(ctx context.Context, tx *sqlx.Tx, userIds []int64) (map[int64]string, error) {
+func fetchIconByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int64) (map[int64]string, error) {
 	hashByUserId := make(map[int64]string)
 	for _, userId := range userIds {
 		hashByUserId[userId] = fallbackImageHash
@@ -71,7 +71,7 @@ func fetchIconByIds(ctx context.Context, tx *sqlx.Tx, userIds []int64) (map[int6
 	}
 
 	imageModels := []ImageModel{}
-	if err := tx.SelectContext(ctx, &imageModels, query, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, db, &imageModels, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to query icons: %w", err)
 	}
 	for _, imageModel := range imageModels {
