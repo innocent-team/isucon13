@@ -188,7 +188,6 @@ func main() {
 	otel.SetTracerProvider(tp)
 
 	e := echo.New()
-	e.Debug = true
 	e.Logger.SetLevel(echolog.DEBUG)
 	e.Use(middleware.Logger())
 	cookieStore := sessions.NewCookieStore(secret)
