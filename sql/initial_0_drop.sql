@@ -1,0 +1,12 @@
+drop TABLE themes;
+drop TABLE icons;
+drop TABLE reservation_slots;
+drop TABLE livestream_viewers_history;
+drop TABLE livecomment_reports;
+drop TABLE ng_words;
+drop TABLE reactions;
+drop TABLE livestream_tags;
+drop TABLE tags;
+drop TABLE livecomments;
+drop TABLE livestreams;
+drop TABLE users;

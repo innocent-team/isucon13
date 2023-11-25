@@ -13,21 +13,21 @@ CREATE TABLE `users` (
 -- プロフィール画像
 CREATE TABLE `icons` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL REFERENCES users(id),
   `image` LONGBLOB NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- ユーザごとのカスタムテーマ
 CREATE TABLE `themes` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL REFERENCES users(id),
   `dark_mode` BOOLEAN NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- ライブ配信
 CREATE TABLE `livestreams` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL REFERENCES users(id),
   `title` VARCHAR(255) NOT NULL,
   `description` text NOT NULL,
   `playlist_url` VARCHAR(255) NOT NULL,
@@ -54,23 +54,23 @@ CREATE TABLE `tags` (
 -- ライブ配信とタグの中間テーブル
 CREATE TABLE `livestream_tags` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `livestream_id` BIGINT NOT NULL,
+  `livestream_id` BIGINT NOT NULL REFERENCES livestreams(id),
   `tag_id` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- ライブ配信視聴履歴
 CREATE TABLE `livestream_viewers_history` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
-  `livestream_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL REFERENCES users(id),
+  `livestream_id` BIGINT NOT NULL REFERENCES livestreams(id),
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- ライブ配信に対するライブコメント
 CREATE TABLE `livecomments` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
-  `livestream_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL REFERENCES users(id),
+  `livestream_id` BIGINT NOT NULL REFERENCES livestreams(id),
   `comment` VARCHAR(255) NOT NULL,
   `tip` BIGINT NOT NULL DEFAULT 0,
   `created_at` BIGINT NOT NULL
@@ -79,17 +79,17 @@ CREATE TABLE `livecomments` (
 -- ユーザからのライブコメントのスパム報告
 CREATE TABLE `livecomment_reports` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
-  `livestream_id` BIGINT NOT NULL,
-  `livecomment_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL REFERENCES users(id),
+  `livestream_id` BIGINT NOT NULL REFERENCES livestreams(id),
+  `livecomment_id` BIGINT NOT NULL REFERENCES livecomments(id),
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- 配信者からのNGワード登録
 CREATE TABLE `ng_words` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
-  `livestream_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL REFERENCES users(id),
+  `livestream_id` BIGINT NOT NULL REFERENCES livestreams(id),
   `word` VARCHAR(255) NOT NULL,
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
@@ -98,8 +98,8 @@ CREATE INDEX ng_words_word ON ng_words(`word`);
 -- ライブ配信に対するリアクション
 CREATE TABLE `reactions` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` BIGINT NOT NULL,
-  `livestream_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL REFERENCES users(id),
+  `livestream_id` BIGINT NOT NULL REFERENCES livestreams(id),
   -- :innocent:, :tada:, etc...
   `emoji_name` VARCHAR(255) NOT NULL,
   `created_at` BIGINT NOT NULL
