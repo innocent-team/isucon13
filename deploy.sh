@@ -26,7 +26,7 @@ install -o isucon -g isucon -m 755 ./conf/env/${HOSTNAME}/env.sh /home/isucon/en
 
 # NGINX
 
-if [[ "$INSTANCE_NUM" == 1 ]]; then
+if [[ "$INSTANCE_NUM" == 3 ]]; then
   sudo install -o root -g root -m 644 ./conf/etc/nginx/sites-enabled/isupipe.conf /etc/nginx/sites-enabled/isupipe.conf
   sudo install -o root -g root -m 644 ./conf/etc/nginx/nginx.conf /etc/nginx/nginx.conf
   sudo nginx -t
