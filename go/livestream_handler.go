@@ -508,7 +508,7 @@ func bulkFillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamMode
 			return nil, fmt.Errorf("failed to query users: %w", err)
 		}
 	}
-	userById, err := bulkFillUserReponse(ctx, tx, userModels)
+	userById, err := bulkFillUserResponse(ctx, tx, userModels)
 	if err != nil {
 		return nil, fmt.Errorf("bulkFillUserResponse: %w", err)
 	}

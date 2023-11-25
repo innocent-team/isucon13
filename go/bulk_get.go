@@ -15,7 +15,7 @@ type ImageModel struct {
 	Image  []byte `db:"image"`
 }
 
-func bulkFillUserReponse(ctx context.Context, db sqlx.QueryerContext, userModels []UserModel) (map[int64]User, error) {
+func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModels []UserModel) (map[int64]User, error) {
 	if len(userModels) == 0 {
 		return make(map[int64]User), nil
 	}
