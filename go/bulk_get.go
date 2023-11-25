@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
@@ -14,8 +13,6 @@ type ImageModel struct {
 	Image  []byte `db:"image"`
 	Hash   string `db:"hash"`
 }
-
-var fallbackImageHash = fmt.Sprintf("%x", sha256.Sum256([]byte(fallbackImage)))
 
 func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModels []UserModel) (map[int64]User, error) {
 	if len(userModels) == 0 {
