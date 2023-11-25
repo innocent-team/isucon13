@@ -39,6 +39,7 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 		if err != nil {
 			return nil, err
 		}
+		iconCacheMutex.Lock()
 		for _, userId := range needFetchUserIds {
 			iconCache[userId] = IconCacheData{
 				hash:     hashByUserId[userId],
@@ -47,6 +48,7 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 			}
 			resHashByUserId[userId] = hashByUserId[userId]
 		}
+		iconCacheMutex.Unlock()
 	}
 
 	return resHashByUserId, nil
