@@ -28,3 +28,4 @@ ALTER TABLE `users` auto_increment = 1;
 -- ALTER TABLE `livestream_tags` ADD FOREIGN KEY `tag_id` (`tag_id`) REFERENCES `tags` (`id`);
 -- ALTER TABLE `reactions` ADD FOREIGN KEY `livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
 -- ALTER TABLE `livecomments` ADD FOREIGN KEY `livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+-- ALTER TABLE `livestreams` ADD FOREIGN KEY `user_id` (`user_id`) REFERENCES `users` (`id`);
