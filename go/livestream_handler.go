@@ -524,16 +524,26 @@ func bulkFillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamMode
 			return nil, err
 		}
 
-		tags := make([]Tag, len(livestreamTagModels))
-		for i := range livestreamTagModels {
-			tagModel := TagModel{}
-			if err := tx.GetContext(ctx, &tagModel, "SELECT * FROM tags WHERE id = ?", livestreamTagModels[i].TagID); err != nil {
-				return nil, err
+		tagIds := make([]int64, len(livestreamTagModels))
+		for i, livestreamTagModel := range livestreamTagModels {
+			tagIds[i] = livestreamTagModel.TagID
+		}
+		tags := []Tag{}
+		if len(tagIds) > 0 {
+			tagModels := []TagModel{}
+			query, args, err := sqlx.In("SELECT * FROM tags WHERE id IN (?)", tagIds)
+			if err != nil {
+				return nil, fmt.Errorf("failed to construct IN query for tags: %w", err)
+			}
+			if err := tx.SelectContext(ctx, &tagModels, query, args...); err != nil {
+				return nil, fmt.Errorf("failed to query tags: %w", err)
 			}
 
-			tags[i] = Tag{
-				ID:   tagModel.ID,
-				Name: tagModel.Name,
+			for _, tagModel := range tagModels {
+				tags = append(tags, Tag{
+					ID:   tagModel.ID,
+					Name: tagModel.Name,
+				})
 			}
 		}
 
