@@ -95,7 +95,6 @@ CREATE TABLE `livecomment_reports` (
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 ALTER TABLE `livecomment_reports` ADD FOREIGN KEY `livecomment_reports_user_id` (`user_id`) REFERENCES `users` (`id`);
 ALTER TABLE `livecomment_reports` ADD FOREIGN KEY `livecomment_reports_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
-ALTER TABLE `livecomment_reports` ADD FOREIGN KEY `livecomment_reports_livecomment_id` (`livecomment_id`) REFERENCES `livecomments` (`id`);
 
 -- 配信者からのNGワード登録
 CREATE TABLE `ng_words` (
