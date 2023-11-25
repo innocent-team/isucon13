@@ -487,7 +487,7 @@ func getLivecommentReportsHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, reports)
 }
 
-func bulkFillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
+func bulkFillLivestreamResponse(ctx context.Context, tx sqlx.QueryerContext, livestreamModels []*LivestreamModel) ([]Livestream, error) {
 	if len(livestreamModels) == 0 {
 		return nil, nil
 	}
@@ -504,7 +504,7 @@ func bulkFillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamMode
 		if err != nil {
 			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
 		}
-		if err := tx.SelectContext(ctx, &userModels, query, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &userModels, query, args...); err != nil {
 			return nil, fmt.Errorf("failed to query users: %w", err)
 		}
 	}

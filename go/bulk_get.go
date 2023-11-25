@@ -4,8 +4,67 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
 )
+
+func bulkFillLivecommentResponse(ctx context.Context, db sqlx.QueryerContext, commentModels []LivecommentModel) ([]Livecomment, error) {
+	if len(commentModels) == 0 {
+		return []Livecomment{}, nil
+	}
+
+	var commentOwners []UserModel
+	{
+		commentUserIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.UserID })
+		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", commentUserIds)
+		if err != nil {
+			return nil, fmt.Errorf("failed to construct IN query: %w", err)
+		}
+		if err := sqlx.SelectContext(ctx, db, &commentOwners, query, args...); err != nil {
+			return nil, fmt.Errorf("failed to query users: %w", err)
+		}
+	}
+	userById, err := bulkFillUserResponse(ctx, db, commentOwners)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
+	}
+	var livestreamModels []*LivestreamModel
+	{
+		commentLivestreamIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.LivestreamID })
+		query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", commentLivestreamIds)
+		if err != nil {
+			return nil, fmt.Errorf("failed to construct IN query: %w", err)
+		}
+		if err := sqlx.SelectContext(ctx, db, &livestreamModels, query, args...); err != nil {
+			return nil, fmt.Errorf("failed to query users: %w", err)
+		}
+	}
+
+	liveStreams, err := bulkFillLivestreamResponse(ctx, db, livestreamModels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulkFillLivestreamResponse: %w", err)
+	}
+	livestreamById := make(map[int64]Livestream)
+	for _, livestream := range liveStreams {
+		livestreamById[livestream.ID] = livestream
+	}
+
+	livecomments := make([]Livecomment, len(commentModels))
+	for i, livecommentModel := range commentModels {
+		commentOwner := userById[livecommentModel.UserID]
+		livecomment := Livecomment{
+			ID:         livecommentModel.ID,
+			User:       commentOwner,
+			Livestream: livestreamById[livecommentModel.LivestreamID],
+			Comment:    livecommentModel.Comment,
+			Tip:        livecommentModel.Tip,
+			CreatedAt:  livecommentModel.CreatedAt,
+		}
+		livecomments[i] = livecomment
+	}
+
+	return livecomments, nil
+}
 
 type ImageModel struct {
 	ID     int64  `db:"id"`
