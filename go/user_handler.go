@@ -112,7 +112,7 @@ func getIconHandler(c echo.Context) error {
 		}
 	}
 	c.Logger().Infof("iconhash: %s header:%s", hash, c.Request().Header.Get("If-None-Match"))
-	if c.Request().Header.Get("If-None-Match") == hash {
+	if c.Request().Header.Get("If-None-Match") == fmt.Sprintf("\"%s\"", hash) {
 		return c.NoContent(http.StatusNotModified)
 	}
 
