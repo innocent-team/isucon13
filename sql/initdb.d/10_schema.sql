@@ -15,6 +15,7 @@ CREATE TABLE `icons` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NOT NULL,
   `image` LONGBLOB NOT NULL
+  `hash` VARCHAR(255) NOT NULL,
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 ALTER TABLE `icons` ADD FOREIGN KEY `icons_user_id` (`user_id`) REFERENCES `users` (`id`);
 
