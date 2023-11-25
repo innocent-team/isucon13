@@ -17,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.nhat.io/otelsql"
 
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
@@ -27,6 +28,7 @@ import (
 	"cloud.google.com/go/profiler"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 const (
@@ -100,7 +102,19 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 		conf.ParseTime = parseTime
 	}
 
-	db, err := sqlx.Open("mysql", conf.FormatDSN())
+	// Register the otelsql wrapper for the provided postgres driver.
+	driverName, err := otelsql.Register("mysql",
+		otelsql.AllowRoot(),
+		otelsql.TraceQueryWithoutArgs(),
+		otelsql.TraceRowsClose(),
+		otelsql.TraceRowsAffected(),
+		otelsql.WithDatabaseName("isupipe"),
+		otelsql.WithSystem(semconv.DBSystemMySQL),
+	)
+	if err != nil {
+		return nil, err
+	}
+	db, err := sqlx.Open(driverName, conf.FormatDSN())
 	if err != nil {
 		return nil, err
 	}
