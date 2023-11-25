@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"os"
 
 	"github.com/jmoiron/sqlx"
 )
 
 type ImageModel struct {
-	ID     int64    `db:"id"`
-	UserId int64    `db:"user_id"`
-	Image  []byte   `db:"image"`
-	Hash   [32]byte `db:"hash"`
+	ID     int64  `db:"id"`
+	UserId int64  `db:"user_id"`
+	Image  []byte `db:"image"`
 }
 
 func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModels []UserModel) (map[int64]User, error) {
@@ -42,12 +43,16 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 	}
 
 	// imagesをbulk getする
-	hashByUserId := make(map[int64][32]byte)
+	fallbackImageData, err := os.ReadFile(fallbackImage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read fallbackImage: %w", err)
+	}
+	imageByUserId := make(map[int64][]byte)
 	for _, userId := range userIds {
-		hashByUserId[userId] = fallbackImageHash
+		imageByUserId[userId] = fallbackImageData
 	}
 	{
-		query, args, err := sqlx.In("SELECT user_id, hash FROM icons WHERE user_id IN (?)", userIds)
+		query, args, err := sqlx.In("SELECT * FROM icons WHERE user_id IN (?)", userIds)
 		if err != nil {
 			return nil, fmt.Errorf("failed to construct IN query for icons: %w", err)
 		}
@@ -57,7 +62,7 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 			return nil, fmt.Errorf("failed to query icons: %w", err)
 		}
 		for _, imageModel := range imageModels {
-			hashByUserId[imageModel.UserId] = imageModel.Hash
+			imageByUserId[imageModel.UserId] = imageModel.Image
 		}
 	}
 
@@ -65,7 +70,8 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 	userById := make(map[int64]User)
 	for _, userModel := range userModels {
 		themeModel := themeByUserId[userModel.ID]
-		iconHash := hashByUserId[userModel.ID]
+		image := imageByUserId[userModel.ID]
+		iconHash := sha256.Sum256(image)
 
 		user := User{
 			ID:          userModel.ID,
