@@ -22,7 +22,7 @@ git pull
 sudo systemctl daemon-reload
 
 # env
-install -o isucon -g isucon -m 755 ./conf/env.sh /home/isucon/env.sh
+install -o isucon -g isucon -m 755 ./conf/env/${HOSTNAME}/env.sh /home/isucon/env.sh
 
 # NGINX
 #
@@ -41,27 +41,31 @@ install -o isucon -g isucon -m 755 ./conf/env.sh /home/isucon/env.sh
 #fi
 
 # APP
-#if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 5 ]]; then
+if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 3 ]]; then
+  sudo install -o root -g root -m 644 ./conf/etc/systemd/system/isupipe-go.service /etc/systemd/system/isupipe-go.service
+  sudo systemctl daemon-reload
+
   pushd go
   make build
   popd
   sudo systemctl restart isupipe-go.service
-  sudo systemctl enable isupipe-go.service
+  sudo systemctl enable --now isupipe-go.service
   
   sleep 2
   
   sudo systemctl status isupipe-go.service --no-pager
-#else
-#  sudo systemctl disable --now isuconquest.go.service
-#fi
+else
+  sudo systemctl disable --now isupipe-go.service
+fi
 
 # MYSQL
-#if [[ "$INSTANCE_NUM" == 2 || "$INSTANCE_NUM" == 3 || "$INSTANCE_NUM" == 4 ]]; then
-#  sudo install -o root -g root -m 644 ./conf/etc/mysql/mysql.conf.d/mysqld.cnf /etc/mysql/mysql.conf.d/mysqld.cnf
-#
-#  echo "MySQL restart したいなら手動でやってね"
-##  sudo systemctl restart mysql
-#  sudo systemctl enable --now mysql
-#else
+if [[ "$INSTANCE_NUM" == 2 ]]; then
+  sudo install -o root -g root -m 644 ./conf/etc/mysql/mysql.conf.d/mysqld.cnf /etc/mysql/mysql.conf.d/mysqld.cnf
+
+  echo "MySQL restart したいなら手動で sudo systemctl restart mysql やってね"
+#  sudo systemctl restart mysql
+  sudo systemctl enable --now mysql
+else
+  echo TODO PDNS
 #  sudo systemctl disable --now mysql.service
-#fi
+fi
