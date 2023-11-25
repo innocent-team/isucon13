@@ -101,23 +101,9 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 	}
 
 	// imagesをbulk getする
-	hashByUserId := make(map[int64]string)
-	for _, userId := range userIds {
-		hashByUserId[userId] = fallbackImageHash
-	}
-	{
-		query, args, err := sqlx.In("SELECT user_id, hash FROM icons WHERE user_id IN (?)", userIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for icons: %w", err)
-		}
-
-		imageModels := []ImageModel{}
-		if err := sqlx.SelectContext(ctx, db, &imageModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query icons: %w", err)
-		}
-		for _, imageModel := range imageModels {
-			hashByUserId[imageModel.UserId] = imageModel.Hash
-		}
+	hashByUserId, err := getIconHashByIds(ctx, db, userIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get icon hash by ids: %w", err)
 	}
 
 	// User.ID -> User にして返す
