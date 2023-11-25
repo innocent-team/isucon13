@@ -101,7 +101,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 		  ), ranking_score AS (
 			SELECT reaction_per_user.user_id, (IFNULL(reaction_count, 0) + IFNULL(sum_tip, 0)) AS score FROM reaction_per_user LEFT OUTER JOIN tip_per_user ON reaction_per_user.user_id = tip_per_user.user_id
 		  ), ranking_per_user AS (
-			SELECT users.id AS user_id, IFNULL(ranking_score.score, 0), ROW_NUMBER() OVER w AS 'ranking' FROM users LEFT JOIN ranking_score ON users.id = ranking_score.user_id WINDOW w AS (ORDER BY ranking_score.score DESC)
+			SELECT users.id AS user_id, IFNULL(ranking_score.score, 0), ROW_NUMBER() OVER w AS 'ranking' FROM users LEFT JOIN ranking_score ON users.id = ranking_score.user_id WINDOW w AS (ORDER BY ranking_score.score DESC, users.name DESC)
 		  ) SELECT ranking FROM ranking_per_user WHERE user_id = ?`
 		if err := tx.GetContext(ctx, &rank, query, user.ID); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to count ranking: "+err.Error())
