@@ -17,7 +17,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"go.nhat.io/otelsql"
 
 	"github.com/gorilla/sessions"
@@ -189,7 +188,7 @@ func main() {
 
 	e := echo.New()
 	e.Logger.SetLevel(echolog.DEBUG)
-	e.Use(middleware.Logger())
+	// e.Use(middleware.Logger())
 	cookieStore := sessions.NewCookieStore(secret)
 	cookieStore.Options.Domain = "*.u.isucon.dev"
 	e.Use(session.Middleware(cookieStore))
