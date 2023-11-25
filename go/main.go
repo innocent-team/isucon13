@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"net"
@@ -141,6 +142,8 @@ func initializeHandler(c echo.Context) error {
 	})
 }
 
+var fallbackImageHash = "undef"
+
 func main() {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	cfg := profiler.Config{
@@ -166,6 +169,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("texporter.NewExporter: %v", err)
 	}
+
+	fallbackImageData, err := os.ReadFile(fallbackImage)
+	if err != nil {
+		panic("failed to read fallback image")
+	}
+	fallbackImageHash = fmt.Sprintf("%x", sha256.Sum256([]byte(fallbackImageData)))
 
 	// Create trace provider with the exporter.
 	//

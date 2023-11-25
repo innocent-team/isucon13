@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
-	"os"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -13,6 +11,7 @@ type ImageModel struct {
 	ID     int64  `db:"id"`
 	UserId int64  `db:"user_id"`
 	Image  []byte `db:"image"`
+	Hash   string `db:"hash"`
 }
 
 func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModels []UserModel) (map[int64]User, error) {
@@ -43,16 +42,12 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 	}
 
 	// imagesをbulk getする
-	fallbackImageData, err := os.ReadFile(fallbackImage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read fallbackImage: %w", err)
-	}
-	imageByUserId := make(map[int64][]byte)
+	hashByUserId := make(map[int64]string)
 	for _, userId := range userIds {
-		imageByUserId[userId] = fallbackImageData
+		hashByUserId[userId] = fallbackImageHash
 	}
 	{
-		query, args, err := sqlx.In("SELECT * FROM icons WHERE user_id IN (?)", userIds)
+		query, args, err := sqlx.In("SELECT user_id, hash FROM icons WHERE user_id IN (?)", userIds)
 		if err != nil {
 			return nil, fmt.Errorf("failed to construct IN query for icons: %w", err)
 		}
@@ -62,7 +57,7 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 			return nil, fmt.Errorf("failed to query icons: %w", err)
 		}
 		for _, imageModel := range imageModels {
-			imageByUserId[imageModel.UserId] = imageModel.Image
+			hashByUserId[imageModel.UserId] = imageModel.Hash
 		}
 	}
 
@@ -70,8 +65,7 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 	userById := make(map[int64]User)
 	for _, userModel := range userModels {
 		themeModel := themeByUserId[userModel.ID]
-		image := imageByUserId[userModel.ID]
-		iconHash := sha256.Sum256(image)
+		iconHash := hashByUserId[userModel.ID]
 
 		user := User{
 			ID:          userModel.ID,
@@ -82,7 +76,7 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 				ID:       themeModel.ID,
 				DarkMode: themeModel.DarkMode,
 			},
-			IconHash: fmt.Sprintf("%x", iconHash),
+			IconHash: iconHash,
 		}
 		userById[user.ID] = user
 	}
