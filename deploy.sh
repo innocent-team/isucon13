@@ -42,11 +42,14 @@ install -o isucon -g isucon -m 755 ./conf/env/${HOSTNAME}/env.sh /home/isucon/en
 
 # APP
 if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 3 ]]; then
+  sudo install -o root -g root -m 644 ./conf/etc/systemd/system/isupipe-go.service /etc/systemd/system/isupipe-go.service
+  sudo systemctl daemon-reload
+
   pushd go
   make build
   popd
   sudo systemctl restart isupipe-go.service
-  sudo systemctl enable isupipe-go.service
+  sudo systemctl enable --now isupipe-go.service
   
   sleep 2
   
@@ -63,5 +66,6 @@ if [[ "$INSTANCE_NUM" == 2 ]]; then
 #  sudo systemctl restart mysql
   sudo systemctl enable --now mysql
 else
-  sudo systemctl disable --now mysql.service
+  echo TODO PDNS
+#  sudo systemctl disable --now mysql.service
 fi
