@@ -388,7 +388,7 @@ func moderateHandler(c echo.Context) error {
 	livecomments.livestream_id = ? AND
 	livecomments.comment LIKE CONCAT('%', ng_words.word, '%');
 	`
-	if _, err := tx.ExecContext(ctx, query, livestreamID, req.NGWord); err != nil {
+	if _, err := tx.ExecContext(ctx, query, livestreamID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 	}
 
