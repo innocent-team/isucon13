@@ -188,22 +188,29 @@ func searchLivestreamsHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get tags: "+err.Error())
 		}
 
-		query, params, err := sqlx.In("SELECT * FROM livestream_tags WHERE tag_id IN (?) ORDER BY livestream_id DESC", tagIDList)
+		query, params, err := sqlx.In("SELECT * FROM livestream_tags WHERE tag_id IN (?)", tagIDList)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query: "+err.Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query for livestream_tags: "+err.Error())
 		}
 		var keyTaggedLivestreams []*LivestreamTagModel
 		if err := tx.SelectContext(ctx, &keyTaggedLivestreams, query, params...); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get keyTaggedLivestreams: "+err.Error())
 		}
 
-		for _, keyTaggedLivestream := range keyTaggedLivestreams {
-			ls := LivestreamModel{}
-			if err := tx.GetContext(ctx, &ls, "SELECT * FROM livestreams WHERE id = ?", keyTaggedLivestream.LivestreamID); err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
+		if len(keyTaggedLivestreams) > 0 {
+			livestreamIds := make([]int64, len(keyTaggedLivestreams))
+			for i, keyTaggedLivestream := range keyTaggedLivestreams {
+				livestreamIds[i] = keyTaggedLivestream.LivestreamID
 			}
 
-			livestreamModels = append(livestreamModels, &ls)
+			query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?) ORDER BY id DESC", livestreamIds)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query for livestreams: "+err.Error())
+			}
+
+			if err := tx.SelectContext(ctx, &livestreamModels, query, args...); err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreamModels: "+err.Error())
+			}
 		}
 	} else {
 		// 検索条件なし
@@ -221,13 +228,9 @@ func searchLivestreamsHandler(c echo.Context) error {
 		}
 	}
 
-	livestreams := make([]Livestream, len(livestreamModels))
-	for i := range livestreamModels {
-		livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModels[i])
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
-		}
-		livestreams[i] = livestream
+	livestreams, err := bulkFillLivestreamResponse(ctx, tx, livestreamModels)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to bulkFillLivestreamRersponse: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -482,6 +485,62 @@ func getLivecommentReportsHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, reports)
+}
+
+func bulkFillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
+	if len(livestreamModels) == 0 {
+		return nil, nil
+	}
+
+	livestreams := make([]Livestream, len(livestreamModels))
+	userIds := make([]int64, len(livestreamModels))
+	for i, livestreamModel := range livestreamModels {
+		userIds[i] = livestreamModel.UserID
+	}
+
+	userModels := []UserModel{}
+	{
+		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
+		if err != nil {
+			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
+		}
+		if err := tx.SelectContext(ctx, &userModels, query, args...); err != nil {
+			return nil, fmt.Errorf("failed to query users: %w", err)
+		}
+	}
+	userById, err := bulkFillUserResponse(ctx, tx, userModels)
+	if err != nil {
+		return nil, fmt.Errorf("bulkFillUserResponse: %w", err)
+	}
+	tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, tx, livestreamModels)
+	if err != nil {
+		return nil, fmt.Errorf("bulkGetTagsByLivestream: %w", err)
+	}
+
+	for i, livestreamModel := range livestreamModels {
+		owner, ok := userById[livestreamModel.UserID]
+		if !ok {
+			return nil, fmt.Errorf("owner not found (id=%d)", livestreamModel.UserID)
+		}
+
+		tags := tagsByLivestreamId[livestreamModel.ID]
+
+		livestream := Livestream{
+			ID:           livestreamModel.ID,
+			Owner:        owner,
+			Title:        livestreamModel.Title,
+			Tags:         tags,
+			Description:  livestreamModel.Description,
+			PlaylistUrl:  livestreamModel.PlaylistUrl,
+			ThumbnailUrl: livestreamModel.ThumbnailUrl,
+			StartAt:      livestreamModel.StartAt,
+			EndAt:        livestreamModel.EndAt,
+		}
+
+		livestreams[i] = livestream
+	}
+
+	return livestreams, nil
 }
 
 func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel) (Livestream, error) {
