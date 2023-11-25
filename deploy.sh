@@ -41,7 +41,7 @@ install -o isucon -g isucon -m 755 ./conf/env/${HOSTNAME}/env.sh /home/isucon/en
 #fi
 
 # APP
-if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 2 || "$INSTANCE_NUM" == 3 ]]; then
+if [[ "$INSTANCE_NUM" == 2 || "$INSTANCE_NUM" == 3 ]]; then
   sudo install -o root -g root -m 644 ./conf/etc/systemd/system/isupipe-go.service /etc/systemd/system/isupipe-go.service
   sudo systemctl daemon-reload
 
@@ -59,13 +59,26 @@ else
 fi
 
 # MYSQL
-if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 2 || "$INSTANCE_NUM" == 3 ]]; then
+if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 2 ]]; then
   sudo install -o root -g root -m 644 ./conf/etc/mysql/mysql.conf.d/mysqld.cnf /etc/mysql/mysql.conf.d/mysqld.cnf
 
   echo "MySQL restart したいなら手動で sudo systemctl restart mysql やってね"
 #  sudo systemctl restart mysql
   sudo systemctl enable --now mysql
 else
-  echo TODO PDNS
   sudo systemctl disable --now mysql.service
+fi
+
+# PDNS dist
+if [[ "$INSTANCE_NUM" == 1 ]]; then
+  sudo systemctl enable --now pdns
+else
+  sudo systemctl disable --now pdns
+fi
+ 
+if [[ "$INSTANCE_NUM" == 3 ]]; then
+  sudo install -o root -g _dnsdist -m 640 ./conf/etc/dnsdist/dnsdist.conf /etc/dnsdist/dnsdist.conf
+  sudo systemctl enable --now dnsdist
+else
+  sudo systemctl disable --now dnsdist
 fi
