@@ -261,13 +261,9 @@ func getMyLivestreamsHandler(c echo.Context) error {
 	if err := tx.SelectContext(ctx, &livestreamModels, "SELECT * FROM livestreams WHERE user_id = ?", userID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 	}
-	livestreams := make([]Livestream, len(livestreamModels))
-	for i := range livestreamModels {
-		livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModels[i])
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
-		}
-		livestreams[i] = livestream
+	livestreams, err := bulkFillLivestreamResponse(ctx, tx, livestreamModels)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -304,13 +300,9 @@ func getUserLivestreamsHandler(c echo.Context) error {
 	if err := tx.SelectContext(ctx, &livestreamModels, "SELECT * FROM livestreams WHERE user_id = ?", user.ID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 	}
-	livestreams := make([]Livestream, len(livestreamModels))
-	for i := range livestreamModels {
-		livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModels[i])
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
-		}
-		livestreams[i] = livestream
+	livestreams, err := bulkFillLivestreamResponse(ctx, tx, livestreamModels)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
