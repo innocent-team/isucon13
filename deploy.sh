@@ -22,7 +22,7 @@ git pull
 sudo systemctl daemon-reload
 
 # env
-install -o isucon -g isucon -m 755 ./conf/env.sh /home/isucon/env.sh
+install -o isucon -g isucon -m 755 ./conf/env/${HOSTNAME}/env.sh /home/isucon/env.sh
 
 # NGINX
 #
