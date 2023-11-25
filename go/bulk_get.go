@@ -135,6 +135,10 @@ func bulkGetTagsByLivestream(ctx context.Context, db sqlx.QueryerContext, livest
 	}
 
 	tagsByLivestreamId := make(map[int64][]Tag)
+	// nilにならないように空スライスを埋めておく
+	for _, livestreamTagModel := range livestreamTagModels {
+		tagsByLivestreamId[livestreamTagModel.LivestreamID] = make([]Tag, 0)
+	}
 	for _, livestreamTagModel := range livestreamTagModels {
 		tag := tagById[livestreamTagModel.TagID]
 		tagsByLivestreamId[livestreamTagModel.LivestreamID] = append(tagsByLivestreamId[livestreamTagModel.LivestreamID], tag)
