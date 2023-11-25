@@ -93,9 +93,11 @@ func getUserStatisticsHandler(c echo.Context) error {
 	{
 		query := `
 		WITH reaction_per_user AS (
-			SELECT user_id, COUNT(*) AS reaction_count FROM reactions GROUP BY user_id
+			SELECT l.user_id, COUNT(*) AS reaction_count FROM reactions r
+			LEFT JOIN livestreams l ON l.id = r.livestream_id GROUP BY l.user_id
 		  ), tip_per_user AS (
-			SELECT user_id, IFNULL(SUM(tip), 0) AS sum_tip FROM livecomments GROUP BY user_id
+			SELECT l.user_id, IFNULL(SUM(lc.tip), 0) AS sum_tip FROM livecomments lc
+			LEFT JOIN livestreams l ON l.id = lc.livestream_id GROUP BY l.user_id
 		  ), ranking_score AS (
 			SELECT reaction_per_user.user_id, (IFNULL(reaction_count, 0) + IFNULL(sum_tip, 0)) AS score FROM reaction_per_user LEFT OUTER JOIN tip_per_user ON reaction_per_user.user_id = tip_per_user.user_id
 		  ), ranking_per_user AS (
