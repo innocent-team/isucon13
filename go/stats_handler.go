@@ -162,15 +162,14 @@ func getUserStatisticsHandler(c echo.Context) error {
 	var favoriteEmoji string
 	query = `
 	SELECT r.emoji_name
-	FROM users u
-	INNER JOIN livestreams l ON l.user_id = u.id
+	FROM livestreams l
 	INNER JOIN reactions r ON r.livestream_id = l.id
-	WHERE u.name = ?
+	WHERE l.user_id = ?
 	GROUP BY emoji_name
 	ORDER BY COUNT(*) DESC, emoji_name DESC
 	LIMIT 1
 	`
-	if err := tx.GetContext(ctx, &favoriteEmoji, query, username); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.GetContext(ctx, &favoriteEmoji, query, user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to find favorite emoji: "+err.Error())
 	}
 
