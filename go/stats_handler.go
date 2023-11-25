@@ -144,7 +144,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	var viewersCount int64
 	if len(livestreams) > 0 {
 		livestreamIds := godash.Map(livestreams, func(item *LivestreamModel, _ int) int64 { return item.ID })
-		query, args, err := sqlx.In("SELECT livestream_id, COUNT(*) AS cnt FROM livestream_viewers_history WHERE livestream_id IN (?)", livestreamIds)
+		query, args, err := sqlx.In("SELECT livestream_id, COUNT(*) AS cnt FROM livestream_viewers_history WHERE livestream_id IN (?) GROUP BY livestream_id", livestreamIds)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query: "+err.Error())
 		}
