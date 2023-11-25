@@ -92,7 +92,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	{
 		query := `
 		WITH reaction_per_user AS (
-			SELECT l.user_id, IFNULL(SUM(r.cnt), 0) AS reaction_count FROM livestream_reaction_count r
+			SELECT l.user_id, COUNT(*) AS reaction_count FROM reactions r
 			LEFT JOIN livestreams l ON l.id = r.livestream_id GROUP BY l.user_id
 		  ), tip_per_user AS (
 			SELECT l.user_id, IFNULL(SUM(lc.tip), 0) AS sum_tip FROM livecomments lc
@@ -227,7 +227,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	{
 		query := `
 		WITH reaction_per_livestream AS (
-			SELECT l.id, IFNULL(SUM(r.cnt), 0) AS reaction_count FROM livestream_reaction_count r
+			SELECT l.id, COUNT(*) AS reaction_count FROM reactions r
 			LEFT JOIN livestreams l ON l.id = r.livestream_id GROUP BY l.id
 		  ), tip_per_livestream AS (
 			SELECT l.id, IFNULL(SUM(lc.tip), 0) AS sum_tip FROM livecomments lc
@@ -258,7 +258,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 
 	// リアクション数
 	var totalReactions int64
-	if err := tx.GetContext(ctx, &totalReactions, "SELECT IFNULL(SUM(r.cnt), 0) FROM livestreams l INNER JOIN reactions r ON r.livestream_id = l.id WHERE l.id = ?", livestreamID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.GetContext(ctx, &totalReactions, "SELECT COUNT(*) FROM livestreams l INNER JOIN reactions r ON r.livestream_id = l.id WHERE l.id = ?", livestreamID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to count total reactions: "+err.Error())
 	}
 
