@@ -54,7 +54,8 @@ fi
 # pdns
 if [[ "$INSTANCE_NUM" == 3 ]]; then
   sudo install -o root -g _dnsdist -m 640 ./conf/etc/dnsdist/dnsdist.conf /etc/dnsdist/dnsdist.conf
-  sudo systemctl enable --now dnsdist
+  sudo systemctl restart dnsdist
+  sudo systemctl enable dnsdist
 else
   sudo systemctl disable --now dnsdist
 fi
