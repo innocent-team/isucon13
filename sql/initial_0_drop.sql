@@ -1,0 +1,12 @@
+drop TABLE IF EXISTS themes;
+drop TABLE IF EXISTS icons;
+drop TABLE IF EXISTS reservation_slots;
+drop TABLE IF EXISTS livestream_viewers_history;
+drop TABLE IF EXISTS livecomment_reports;
+drop TABLE IF EXISTS ng_words;
+drop TABLE IF EXISTS reactions;
+drop TABLE IF EXISTS livestream_tags;
+drop TABLE IF EXISTS tags;
+drop TABLE IF EXISTS livecomments;
+drop TABLE IF EXISTS livestreams;
+drop TABLE IF EXISTS users;
