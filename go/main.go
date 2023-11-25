@@ -251,8 +251,6 @@ func main() {
 	// 課金情報
 	e.GET("/api/payment", GetPaymentResult)
 
-	e.GET("/api/db_stats", dbStatsHandler)
-
 	e.HTTPErrorHandler = errorResponseHandler
 
 	// DB接続
@@ -277,11 +275,6 @@ func main() {
 		e.Logger.Errorf("failed to start HTTP server: %v", err)
 		os.Exit(1)
 	}
-}
-
-func dbStatsHandler(c echo.Context) error {
-	stats := dbConn.Stats()
-	return c.JSON(http.StatusOK, stats)
 }
 
 type ErrorResponse struct {
