@@ -13,6 +13,7 @@ type ImageModel struct {
 	ID     int64  `db:"id"`
 	UserId int64  `db:"user_id"`
 	Image  []byte `db:"image"`
+	Hash   string `db:"hash"`
 }
 
 func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModels []UserModel) (map[int64]User, error) {
