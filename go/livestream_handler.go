@@ -512,6 +512,10 @@ func bulkFillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamMode
 	if err != nil {
 		return nil, fmt.Errorf("bulkFillUserResponse: %w", err)
 	}
+	tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, tx, livestreamModels)
+	if err != nil {
+		return nil, fmt.Errorf("bulkGetTagsByLivestream: %w", err)
+	}
 
 	for i, livestreamModel := range livestreamModels {
 		owner, ok := userById[livestreamModel.UserID]
@@ -519,33 +523,7 @@ func bulkFillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamMode
 			return nil, fmt.Errorf("owner not found (id=%d)", livestreamModel.UserID)
 		}
 
-		var livestreamTagModels []*LivestreamTagModel
-		if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
-			return nil, err
-		}
-
-		tagIds := make([]int64, len(livestreamTagModels))
-		for i, livestreamTagModel := range livestreamTagModels {
-			tagIds[i] = livestreamTagModel.TagID
-		}
-		tags := []Tag{}
-		if len(tagIds) > 0 {
-			tagModels := []TagModel{}
-			query, args, err := sqlx.In("SELECT * FROM tags WHERE id IN (?)", tagIds)
-			if err != nil {
-				return nil, fmt.Errorf("failed to construct IN query for tags: %w", err)
-			}
-			if err := tx.SelectContext(ctx, &tagModels, query, args...); err != nil {
-				return nil, fmt.Errorf("failed to query tags: %w", err)
-			}
-
-			for _, tagModel := range tagModels {
-				tags = append(tags, Tag{
-					ID:   tagModel.ID,
-					Name: tagModel.Name,
-				})
-			}
-		}
+		tags := tagsByLivestreamId[livestreamModel.ID]
 
 		livestream := Livestream{
 			ID:           livestreamModel.ID,
