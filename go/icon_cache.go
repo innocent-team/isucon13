@@ -18,11 +18,11 @@ type IconCacheData struct {
 type IconCach map[int64]IconCacheData
 
 var iconCache = IconCach{}
-var iconCacheMutex = sync.Mutex{}
+var iconCacheMutex = sync.RWMutex{}
 
 func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int64) (map[int64]string, error) {
 	resHashByUserId := make(map[int64]string)
-	iconCacheMutex.Lock()
+	iconCacheMutex.RLock()
 	needFetchUserIds := []int64{}
 	for _, userId := range userIds {
 		data, ok := iconCache[userId]
@@ -32,7 +32,7 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 		}
 		needFetchUserIds = append(needFetchUserIds, userId)
 	}
-	iconCacheMutex.Unlock()
+	iconCacheMutex.RUnlock()
 
 	if len(needFetchUserIds) > 0 {
 		hashByUserId, err := fetchIconByIds(ctx, db, needFetchUserIds)
