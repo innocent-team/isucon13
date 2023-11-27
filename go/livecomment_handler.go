@@ -192,21 +192,22 @@ func postLivecommentHandler(c echo.Context) error {
 		}
 	}
 
-	// スパム判定
-	var ngwordStrs []string
-	if err := tx.SelectContext(ctx, &ngwordStrs, "SELECT word FROM ng_words WHERE user_id = ? AND livestream_id = ?", livestreamModel.UserID, livestreamModel.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
-	}
-	containsNgWord := false
-	for _, word := range ngwordStrs {
-		if strings.Contains(req.Comment, word) {
-			containsNgWord = true
-			break
+	// チップを投げない人だけスパム判定しておく
+	if req.Tip == 0 {
+		var ngwordStrs []string
+		if err := tx.SelectContext(ctx, &ngwordStrs, "SELECT word FROM ng_words WHERE user_id = ? AND livestream_id = ?", livestreamModel.UserID, livestreamModel.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
 		}
-	}
-
-	if containsNgWord {
-		return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
+		containsNgWord := false
+		for _, word := range ngwordStrs {
+			if strings.Contains(req.Comment, word) {
+				containsNgWord = true
+				break
+			}
+		}
+		if containsNgWord {
+			return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
+		}
 	}
 
 	now := time.Now().Unix()
