@@ -371,13 +371,11 @@ func moderateHandler(c echo.Context) error {
 	}
 
 	query := `
-	DELETE livecomments FROM livecomments
-	INNER JOIN ng_words ON livecomments.livestream_id = ng_words.livestream_id
-	WHERE
-	livecomments.livestream_id = ? AND
-	livecomments.comment LIKE CONCAT('%', ng_words.word, '%');
+	DELETE FROM livecomments
+	WHERE livestream_id = ? AND
+	comment LIKE CONCAT('%', ?, '%');
 	`
-	if _, err := tx.ExecContext(ctx, query, livestreamID); err != nil {
+	if _, err := tx.ExecContext(ctx, query, livestreamID, req.NGWord); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 	}
 
