@@ -168,7 +168,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 		}
 	}
 
-	livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModel)
+	livestream, err := fillLivestreamResponse(ctx, tx2, *livestreamModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
 	}
