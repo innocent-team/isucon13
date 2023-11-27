@@ -56,10 +56,12 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 			}); err != nil {
 				return nil, err
 			}
-			memd.Set(&memcache.Item{
+			if err := memd.Set(&memcache.Item{
 				Key:   memcachedIconCacheKey(userId),
 				Value: encoded.Bytes(),
-			})
+			}); err != nil {
+				return nil, err
+			}
 			resHashByUserId[userId] = hashByUserId[userId]
 		}
 	}
@@ -73,6 +75,25 @@ func getIconHashById(ctx context.Context, db sqlx.QueryerContext, userId int64) 
 		return "", err
 	}
 	return hashByUserId[userId], nil
+}
+
+func updateIconHash(ctx context.Context, userId int64, newHash string) error {
+	var encoded bytes.Buffer
+	if err := gob.NewEncoder(&encoded).Encode(IconCacheData{
+		hash:   newHash,
+		userID: userId,
+	}); err != nil {
+		return err
+	}
+
+	if err := memd.Set(&memcache.Item{
+		Key:   memcachedIconCacheKey(userId),
+		Value: encoded.Bytes(),
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func fetchIconByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int64) (map[int64]string, error) {

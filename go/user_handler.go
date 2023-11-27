@@ -163,6 +163,10 @@ func postIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted icon id: "+err.Error())
 	}
 
+	if err := updateIconHash(ctx, userID, iconHash); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update icon hash: "+err.Error())
+	}
+
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
