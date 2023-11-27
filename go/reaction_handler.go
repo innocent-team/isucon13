@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -66,14 +67,9 @@ func getReactionsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "failed to get reactions")
 	}
 
-	reactions := make([]Reaction, len(reactionModels))
-	for i := range reactionModels {
-		reaction, err := fillReactionResponse(ctx, tx, reactionModels[i])
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill reaction: "+err.Error())
-		}
-
-		reactions[i] = reaction
+	reactions, err := bulkFillReactionResponse(ctx, tx, reactionModels)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to bulkFillReactionResponse: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -81,6 +77,61 @@ func getReactionsHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, reactions)
+}
+
+func bulkFillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModels []ReactionModel) ([]Reaction, error) {
+	if len(reactionModels) == 0 {
+		return []Reaction{}, nil
+	}
+
+	userModels := []UserModel{}
+	{
+		userIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.UserID })
+		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
+		if err != nil {
+			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
+		}
+		if err := sqlx.SelectContext(ctx, tx, &userModels, query, args...); err != nil {
+			return nil, fmt.Errorf("failed to query users: %w", err)
+		}
+	}
+	userById, err := bulkFillUserResponse(ctx, tx, userModels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
+	}
+	livestreamModels := []*LivestreamModel{}
+	{
+		livestreamIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.LivestreamID })
+		query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", livestreamIds)
+		if err != nil {
+			return nil, fmt.Errorf("failed to construct IN query for livestreams: %w", err)
+		}
+		if err := sqlx.SelectContext(ctx, tx, &livestreamModels, query, args...); err != nil {
+			return nil, fmt.Errorf("failed to query livestreams: %w", err)
+		}
+	}
+	livestreams, err := bulkFillLivestreamResponse(ctx, tx, livestreamModels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulkFillLivestreamResponse: %w", err)
+	}
+	livestreamById := godash.KeyBy(livestreams, func(l Livestream) int64 { return l.ID })
+
+	reactions := make([]Reaction, len(reactionModels))
+	for i, reactionModel := range reactionModels {
+		user := userById[reactionModel.UserID]
+		livestream := livestreamById[reactionModel.LivestreamID]
+
+		reaction := Reaction{
+			ID:         reactionModel.ID,
+			EmojiName:  reactionModel.EmojiName,
+			User:       user,
+			Livestream: livestream,
+			CreatedAt:  reactionModel.CreatedAt,
+		}
+
+		reactions[i] = reaction
+	}
+	return reactions, nil
 }
 
 func postReactionHandler(c echo.Context) error {
