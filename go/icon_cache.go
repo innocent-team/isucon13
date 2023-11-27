@@ -13,8 +13,8 @@ import (
 )
 
 type IconCacheData struct {
-	hash   string
-	userID int64
+	Hash   string
+	UserID int64
 }
 
 func memcachedIconCacheKey(userId int64) string {
@@ -39,7 +39,7 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 		if err := gob.NewDecoder(bytes.NewBuffer(data.Value)).Decode(&iconData); err != nil {
 			return nil, err
 		}
-		resHashByUserId[userId] = iconData.hash
+		resHashByUserId[userId] = iconData.Hash
 	}
 
 	if len(needFetchUserIds) > 0 {
@@ -51,8 +51,8 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 		for _, userId := range needFetchUserIds {
 			var encoded bytes.Buffer
 			if err := gob.NewEncoder(&encoded).Encode(IconCacheData{
-				hash:   hashByUserId[userId],
-				userID: userId,
+				Hash:   hashByUserId[userId],
+				UserID: userId,
 			}); err != nil {
 				return nil, err
 			}
@@ -80,8 +80,8 @@ func getIconHashById(ctx context.Context, db sqlx.QueryerContext, userId int64) 
 func updateIconHash(ctx context.Context, userId int64, newHash string) error {
 	var encoded bytes.Buffer
 	if err := gob.NewEncoder(&encoded).Encode(IconCacheData{
-		hash:   newHash,
-		userID: userId,
+		Hash:   newHash,
+		UserID: userId,
 	}); err != nil {
 		return err
 	}
