@@ -459,13 +459,9 @@ func getLivecommentReportsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomment reports: "+err.Error())
 	}
 
-	reports := make([]LivecommentReport, len(reportModels))
-	for i := range reportModels {
-		report, err := fillLivecommentReportResponse(ctx, tx, *reportModels[i])
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomment report: "+err.Error())
-		}
-		reports[i] = report
+	reports, err := bulkFillLivestreamCommentResponse(ctx, tx, reportModels)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to bulkFillLivestreamCommentResponse: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -473,6 +469,59 @@ func getLivecommentReportsHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, reports)
+}
+
+func bulkFillLivestreamCommentResponse(ctx context.Context, tx *sqlx.Tx, reportModels []*LivecommentReportModel) ([]LivecommentReport, error) {
+	if len(reportModels) == 0 {
+		return []LivecommentReport{}, nil
+	}
+
+	userModels := []UserModel{}
+	{
+		userIds := godash.Map(reportModels, func(r *LivecommentReportModel, _ int) int64 { return r.UserID })
+		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
+		if err != nil {
+			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
+		}
+		if err := sqlx.SelectContext(ctx, tx, &userModels, query, args...); err != nil {
+			return nil, fmt.Errorf("failed to query users: %w", err)
+		}
+	}
+	userById, err := bulkFillUserResponse(ctx, tx, userModels)
+	if err != nil {
+		return nil, fmt.Errorf("bulkFillUserResponse: %w", err)
+	}
+	livecommentModels := []LivecommentModel{}
+	{
+		lcIds := godash.Map(reportModels, func(r *LivecommentReportModel, _ int) int64 { return r.LivecommentID })
+		query, args, err := sqlx.In("SELECT * FROM livecomments WHERE id IN (?)", lcIds)
+		if err != nil {
+			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
+		}
+		if err := sqlx.SelectContext(ctx, tx, &livecommentModels, query, args...); err != nil {
+			return nil, fmt.Errorf("failed to query users: %w", err)
+		}
+	}
+	livecomments, err := bulkFillLivecommentResponse(ctx, tx, livecommentModels)
+	if err != nil {
+		return nil, fmt.Errorf("bulkFillLivecommentResponse: %w", err)
+	}
+	livecommentById := godash.KeyBy(livecomments, func(lc Livecomment) int64 { return lc.ID })
+
+	reports := make([]LivecommentReport, len(reportModels))
+	for i, reportModel := range reportModels {
+		reporter := userById[reportModel.UserID]
+		livecomment := livecommentById[reportModel.LivecommentID]
+
+		report := LivecommentReport{
+			ID:          reportModel.ID,
+			Reporter:    reporter,
+			Livecomment: livecomment,
+			CreatedAt:   reportModel.CreatedAt,
+		}
+		reports[i] = report
+	}
+	return reports, nil
 }
 
 func bulkFillLivestreamResponse(ctx context.Context, tx sqlx.QueryerContext, livestreamModels []*LivestreamModel) ([]Livestream, error) {
