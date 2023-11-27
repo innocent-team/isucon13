@@ -18,7 +18,6 @@ CREATE TABLE `icons` (
   `hash` VARCHAR(255) NOT NULL,
   UNIQUE `user_id` (`user_id`)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `icons` ADD FOREIGN KEY `icons_user_id` (`user_id`) REFERENCES `users` (`id`);
 
 -- ユーザごとのカスタムテーマ
 CREATE TABLE `themes` (
