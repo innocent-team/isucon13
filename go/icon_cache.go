@@ -26,7 +26,7 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 	needFetchUserIds := []int64{}
 	for _, userId := range userIds {
 		data, ok := iconCache[userId]
-		if ok && data.createAt.Add(time.Second).After(time.Now()) {
+		if ok && data.createAt.Add(2*time.Second).After(time.Now()) {
 			resHashByUserId[userId] = data.hash
 			continue
 		}
