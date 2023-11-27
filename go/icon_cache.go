@@ -1,54 +1,67 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"fmt"
-	"sync"
-	"time"
+	"strconv"
 
+	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
 )
 
 type IconCacheData struct {
-	hash     string
-	userID   int64
-	createAt time.Time
+	hash   string
+	userID int64
 }
 
-type IconCach map[int64]IconCacheData
-
-var iconCache = IconCach{}
-var iconCacheMutex = sync.RWMutex{}
+func memcachedIconCacheKey(userId int64) string {
+	return "icon:" + strconv.FormatInt(userId, 10)
+}
 
 func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int64) (map[int64]string, error) {
+	items, err := memd.GetMulti(godash.Map(userIds, func(uid int64, _ int) string { return memcachedIconCacheKey(uid) }))
+	if err != nil {
+		return nil, err
+	}
+
 	resHashByUserId := make(map[int64]string)
-	iconCacheMutex.RLock()
 	needFetchUserIds := []int64{}
 	for _, userId := range userIds {
-		data, ok := iconCache[userId]
-		if ok && data.createAt.Add(time.Second).After(time.Now()) {
-			resHashByUserId[userId] = data.hash
+		data, ok := items[memcachedIconCacheKey(userId)]
+		if !ok {
+			needFetchUserIds = append(needFetchUserIds, userId)
 			continue
 		}
-		needFetchUserIds = append(needFetchUserIds, userId)
+		iconData := IconCacheData{}
+		if err := gob.NewDecoder(bytes.NewBuffer(data.Value)).Decode(&iconData); err != nil {
+			return nil, err
+		}
+		resHashByUserId[userId] = iconData.hash
 	}
-	iconCacheMutex.RUnlock()
 
 	if len(needFetchUserIds) > 0 {
 		hashByUserId, err := fetchIconByIds(ctx, db, needFetchUserIds)
 		if err != nil {
 			return nil, err
 		}
-		iconCacheMutex.Lock()
+
 		for _, userId := range needFetchUserIds {
-			iconCache[userId] = IconCacheData{
-				hash:     hashByUserId[userId],
-				userID:   userId,
-				createAt: time.Now(),
+			var encoded bytes.Buffer
+			if err := gob.NewEncoder(&encoded).Encode(IconCacheData{
+				hash:   hashByUserId[userId],
+				userID: userId,
+			}); err != nil {
+				return nil, err
 			}
+			memd.Set(&memcache.Item{
+				Key:   memcachedIconCacheKey(userId),
+				Value: encoded.Bytes(),
+			})
 			resHashByUserId[userId] = hashByUserId[userId]
 		}
-		iconCacheMutex.Unlock()
 	}
 
 	return resHashByUserId, nil
