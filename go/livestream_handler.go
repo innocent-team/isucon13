@@ -183,11 +183,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 	var livestreamModels []*LivestreamModel
 	if c.QueryParam("tag") != "" {
 		// タグによる取得
-		var tagIDList []int
-		if err := tx.SelectContext(ctx, &tagIDList, "SELECT id FROM tags WHERE name = ?", keyTagName); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get tags: "+err.Error())
-		}
-
+		tagIDList := []int{int(tagByName[keyTagName].ID)}
 		query, params, err := sqlx.In("SELECT * FROM livestream_tags WHERE tag_id IN (?)", tagIDList)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query for livestream_tags: "+err.Error())
