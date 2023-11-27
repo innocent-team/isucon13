@@ -370,25 +370,13 @@ func moderateHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted NG word id: "+err.Error())
 	}
 
-	livecomments := []*LivecommentModel{}
-	if err := tx.SelectContext(ctx, &livecomments, "SELECT id, comment FROM livecomments WHERE livestream_id = ?", livestreamID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select livecomments: "+err.Error())
-	}
-	var willBeDeletedLiveCommentIds []int64
-	for _, livecomment := range livecomments {
-		if strings.Contains(livecomment.Comment, req.NGWord) {
-			willBeDeletedLiveCommentIds = append(willBeDeletedLiveCommentIds, livecomment.ID)
-		}
-	}
-
-	if len(willBeDeletedLiveCommentIds) > 0 {
-		query, args, err := sqlx.In("DELETE FROM livecomments WHERE id IN (?)", willBeDeletedLiveCommentIds)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query: "+err.Error())
-		}
-		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
-		}
+	query := `
+	DELETE FROM livecomments
+	WHERE livestream_id = ? AND
+	comment LIKE CONCAT('%', ?, '%');
+	`
+	if _, err := tx.ExecContext(ctx, query, livestreamID, req.NGWord); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
