@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"strconv"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -40,6 +41,8 @@ var (
 	powerDNSSubdomainAddress string
 	dbConn                   *sqlx.DB
 	secret                   = []byte("isucon13_session_cookiestore_defaultsecret")
+
+	memd *memcache.Client
 )
 
 func init() {
@@ -259,6 +262,13 @@ func main() {
 	}
 	defer conn.Close()
 	dbConn = conn
+
+	// memcached
+	// host:port
+	memd = memcache.New(os.Getenv("ISUCON13_MEMCACHED_ADDRESS"))
+	if err := memd.Ping(); err != nil {
+		e.Logger.Errorf("failed to connect memcached: " + err.Error())
+	}
 
 	subdomainAddr, ok := os.LookupEnv(powerDNSSubdomainAddressEnvKey)
 	if !ok {
