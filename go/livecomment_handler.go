@@ -195,7 +195,7 @@ func postLivecommentHandler(c echo.Context) error {
 	// チップを投げない人だけスパム判定しておく
 	if req.Tip == 0 {
 		var ngwordStrs []string
-		if err := tx.SelectContext(ctx, &ngwordStrs, "SELECT word FROM ng_words WHERE user_id = ? AND livestream_id = ?", livestreamModel.UserID, livestreamModel.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if err := tx.SelectContext(ctx, &ngwordStrs, "SELECT word FROM ng_words WHERE livestream_id = ?", livestreamModel.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
 		}
 		containsNgWord := false
