@@ -153,8 +153,10 @@ func reserveLivestreamHandler(c echo.Context) error {
 		}
 	})
 	// タグ追加
-	if _, err := tx.NamedExecContext(ctx, "INSERT INTO livestream_tags (livestream_id, tag_id) VALUES (:livestream_id, :tag_id)", ltModels); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livestream tag: "+err.Error())
+	if len(ltModels) > 0 {
+		if _, err := tx.NamedExecContext(ctx, "INSERT INTO livestream_tags (livestream_id, tag_id) VALUES (:livestream_id, :tag_id)", ltModels); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livestream tag: "+err.Error())
+		}
 	}
 
 	livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModel)
