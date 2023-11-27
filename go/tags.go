@@ -105,3 +105,12 @@ var tagsAll = map[int64]*Tag{
 	102: &Tag{ID: 102, Name: "サプライズ"},
 	103: &Tag{ID: 103, Name: "椅子"},
 }
+
+// tags.name -> tag
+var tagByName = make(map[string]*Tag)
+
+func init() {
+	for _, tag := range tagsAll {
+		tagByName[tag.Name] = tag
+	}
+}
