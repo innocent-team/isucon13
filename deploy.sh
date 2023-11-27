@@ -59,7 +59,7 @@ else
 fi
 
 # APP
-if [[ "$INSTANCE_NUM" == 1 ||  "$INSTANCE_NUM" == 3 ]]; then
+if [[ "$INSTANCE_NUM" == 1 || "$INSTANCE_NUM" == 2 || "$INSTANCE_NUM" == 3 ]]; then
   sudo install -o root -g root -m 644 ./conf/etc/systemd/system/isupipe-go.service /etc/systemd/system/isupipe-go.service
   sudo systemctl daemon-reload
 
