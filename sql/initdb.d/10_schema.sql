@@ -109,6 +109,7 @@ CREATE TABLE `ng_words` (
 CREATE INDEX ng_words_word ON ng_words(`word`);
 ALTER TABLE `ng_words` ADD FOREIGN KEY `ng_words_user_id` (`user_id`) REFERENCES `users` (`id`);
 ALTER TABLE `ng_words` ADD FOREIGN KEY `ng_words_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+ALTER TABLE `ng_words` ADD INDEX `user_id_livestream_id` (`user_id`, `livestream_id`);
 
 -- ライブ配信に対するリアクション
 CREATE TABLE `reactions` (
