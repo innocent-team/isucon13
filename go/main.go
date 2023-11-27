@@ -53,7 +53,7 @@ type InitializeResponse struct {
 	Language string `json:"language"`
 }
 
-func connectDB(logger echo.Logger) (*sqlx.DB, error) {
+func connectDB(logger echo.Logger, enableTracing bool) (*sqlx.DB, error) {
 	const (
 		networkTypeEnvKey = "ISUCON13_MYSQL_DIALCONFIG_NET"
 		addrEnvKey        = "ISUCON13_MYSQL_DIALCONFIG_ADDRESS"
@@ -103,17 +103,21 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 		conf.ParseTime = parseTime
 	}
 
+	driverName := "mysql"
 	// Register the otelsql wrapper for the provided postgres driver.
-	driverName, err := otelsql.Register("mysql",
-		otelsql.AllowRoot(),
-		otelsql.TraceQueryWithoutArgs(),
-		otelsql.TraceRowsClose(),
-		otelsql.TraceRowsAffected(),
-		otelsql.WithDatabaseName("isupipe"),
-		otelsql.WithSystem(semconv.DBSystemMySQL),
-	)
-	if err != nil {
-		return nil, err
+	if enableTracing {
+		name, err := otelsql.Register("mysql",
+			otelsql.AllowRoot(),
+			otelsql.TraceQueryWithoutArgs(),
+			otelsql.TraceRowsClose(),
+			otelsql.TraceRowsAffected(),
+			otelsql.WithDatabaseName("isupipe"),
+			otelsql.WithSystem(semconv.DBSystemMySQL),
+		)
+		if err != nil {
+			return nil, err
+		}
+		driverName = name
 	}
 	db, err := sqlx.Open(driverName, conf.FormatDSN())
 	if err != nil {
@@ -144,29 +148,42 @@ func initializeHandler(c echo.Context) error {
 var fallbackImageHash = "undef"
 
 func main() {
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	cfg := profiler.Config{
-		Service: "isuports",
-		// HHmmss-MMDD
-		ServiceVersion: "101700-1125",
-		// ProjectID must be set if not running on GCP.
-		ProjectID: projectID,
-
-		// For OpenCensus users:
-		// To see Profiler agent spans in APM backend,
-		// set EnableOCTelemetry to true
-		// EnableOCTelemetry: true,
-	}
-
-	// Profiler initialization, best done as early as possible.
-	if err := profiler.Start(cfg); err != nil {
-		log.Fatal(err)
-	}
-	// Create exporter.
 	ctx := context.Background()
-	exporter, err := texporter.New(texporter.WithProjectID(projectID))
-	if err != nil {
-		log.Fatalf("texporter.NewExporter: %v", err)
+	enableTracing := os.Getenv("ENABLE_TRACING") == "true"
+	if enableTracing {
+		projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+		cfg := profiler.Config{
+			Service: "isuports",
+			// HHmmss-MMDD
+			ServiceVersion: "101700-1125",
+			// ProjectID must be set if not running on GCP.
+			ProjectID: projectID,
+
+			// For OpenCensus users:
+			// To see Profiler agent spans in APM backend,
+			// set EnableOCTelemetry to true
+			// EnableOCTelemetry: true,
+		}
+
+		// Profiler initialization, best done as early as possible.
+		if err := profiler.Start(cfg); err != nil {
+			log.Fatal(err)
+		}
+		// Create exporter.
+		exporter, err := texporter.New(texporter.WithProjectID(projectID))
+		if err != nil {
+			log.Fatalf("texporter.NewExporter: %v", err)
+		}
+		// Create trace provider with the exporter.
+		//
+		// By default it uses AlwaysSample() which samples all traces.
+		// In a production environment or high QPS setup please use
+		// probabilistic sampling.
+		// Example:
+		//   tp := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.TraceIDRatioBased(0.0001)), ...)
+		tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+		defer tp.ForceFlush(ctx) // flushes any pending spans
+		otel.SetTracerProvider(tp)
 	}
 
 	fallbackImageData, err := os.ReadFile(fallbackImage)
@@ -175,17 +192,6 @@ func main() {
 	}
 	fallbackImageHash = fmt.Sprintf("%x", sha256.Sum256([]byte(fallbackImageData)))
 
-	// Create trace provider with the exporter.
-	//
-	// By default it uses AlwaysSample() which samples all traces.
-	// In a production environment or high QPS setup please use
-	// probabilistic sampling.
-	// Example:
-	//   tp := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.TraceIDRatioBased(0.0001)), ...)
-	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
-	defer tp.ForceFlush(ctx) // flushes any pending spans
-	otel.SetTracerProvider(tp)
-
 	e := echo.New()
 	e.Logger.SetLevel(echolog.DEBUG)
 	// e.Use(middleware.Logger())
@@ -193,7 +199,9 @@ func main() {
 	cookieStore.Options.Domain = "*.u.isucon.dev"
 	e.Use(session.Middleware(cookieStore))
 	// e.Use(middleware.Recover())
-	e.Use(otelecho.Middleware("isucon13"))
+	if enableTracing {
+		e.Use(otelecho.Middleware("isucon13"))
+	}
 
 	// 初期化
 	e.POST("/api/initialize", initializeHandler)
@@ -252,7 +260,7 @@ func main() {
 	e.HTTPErrorHandler = errorResponseHandler
 
 	// DB接続
-	conn, err := connectDB(e.Logger)
+	conn, err := connectDB(e.Logger, enableTracing)
 	if err != nil {
 		e.Logger.Errorf("failed to connect db: %v", err)
 		os.Exit(1)
