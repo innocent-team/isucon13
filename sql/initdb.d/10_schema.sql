@@ -13,7 +13,7 @@ CREATE TABLE `users` (
 -- スパマー
 CREATE TABLE `spammers` (
   `user_id` BIGINT NOT NULL PRIMARY KEY
-) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ENGINE=MEMORY CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- プロフィール画像
 CREATE TABLE `icons` (
