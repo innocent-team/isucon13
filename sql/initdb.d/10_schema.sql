@@ -84,8 +84,8 @@ CREATE TABLE `livecomments` (
   `tip` BIGINT NOT NULL DEFAULT 0,
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `livecomments` ADD FOREIGN KEY `livecomments_user_id` (`user_id`) REFERENCES `users` (`id`);
-ALTER TABLE `livecomments` ADD FOREIGN KEY `livecomments_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+ALTER TABLE `livecomments` ADD KEY `livecomments_user_id` (`user_id`);
+ALTER TABLE `livecomments` ADD KEY `livecomments_livestream_id_created_at_desc` (`livestream_id`, `created_at` DESC);
 
 -- ユーザからのライブコメントのスパム報告
 CREATE TABLE `livecomment_reports` (
