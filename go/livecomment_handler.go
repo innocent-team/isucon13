@@ -205,7 +205,6 @@ func postLivecommentHandler(c echo.Context) error {
 		}
 	}
 
-	c.Logger().Infof("[containsNgWord=%v] comment = %s", containsNgWord, req.Comment)
 	if containsNgWord {
 		return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
 	}
