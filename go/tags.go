@@ -107,7 +107,7 @@ var tagsAll = map[int64]*Tag{
 }
 
 // tags.name -> tag
-var tagByName map[string]*Tag
+var tagByName = make(map[string]*Tag)
 
 func init() {
 	for _, tag := range tagsAll {
