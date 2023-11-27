@@ -10,3 +10,4 @@ drop TABLE IF EXISTS tags;
 drop TABLE IF EXISTS livecomments;
 drop TABLE IF EXISTS livestreams;
 drop TABLE IF EXISTS users;
+drop TABLE IF EXISTS spammers;

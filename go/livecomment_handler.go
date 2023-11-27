@@ -194,6 +194,14 @@ func postLivecommentHandler(c echo.Context) error {
 
 	// チップを投げない人だけスパム判定しておく
 	if req.Tip == 0 {
+		var spammer int
+		if err := tx.GetContext(ctx, &spammer, "SELECT COUNT(*) FROM spammers WHERE user_id = ?", userID); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get spammer: "+err.Error())
+		}
+		if spammer > 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
+		}
+
 		var ngwordStrs []string
 		if err := tx.SelectContext(ctx, &ngwordStrs, "SELECT word FROM ng_words WHERE user_id = ? AND livestream_id = ?", livestreamModel.UserID, livestreamModel.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
@@ -206,6 +214,9 @@ func postLivecommentHandler(c echo.Context) error {
 			}
 		}
 		if containsNgWord {
+			if _, err := dbConn.ExecContext(ctx, "INSERT INTO spammers (user_id) VALUES (?)", userID); err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert spammer: "+err.Error())
+			}
 			return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
 		}
 	}
