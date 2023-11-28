@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
