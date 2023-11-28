@@ -150,6 +150,9 @@ func postIconHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
 	}
+	if err := updateIconHash(ctx, userID, iconHash); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update icon hash: "+err.Error())
+	}
 
 	iconID, err := rs.LastInsertId()
 	if err != nil {

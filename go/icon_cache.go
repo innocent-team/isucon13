@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 )
 
 type IconCacheData struct {
-	hash     string
-	userID   int64
-	createAt time.Time
+	hash   string
+	userID int64
 }
 
 type IconCach map[int64]IconCacheData
@@ -26,7 +24,7 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 	needFetchUserIds := []int64{}
 	for _, userId := range userIds {
 		data, ok := iconCache[userId]
-		if ok && data.createAt.Add(2*time.Second).After(time.Now()) {
+		if ok {
 			resHashByUserId[userId] = data.hash
 			continue
 		}
@@ -42,9 +40,8 @@ func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int
 		iconCacheMutex.Lock()
 		for _, userId := range needFetchUserIds {
 			iconCache[userId] = IconCacheData{
-				hash:     hashByUserId[userId],
-				userID:   userId,
-				createAt: time.Now(),
+				hash:   hashByUserId[userId],
+				userID: userId,
 			}
 			resHashByUserId[userId] = hashByUserId[userId]
 		}
@@ -60,6 +57,28 @@ func getIconHashById(ctx context.Context, db sqlx.QueryerContext, userId int64) 
 		return "", err
 	}
 	return hashByUserId[userId], nil
+}
+
+func updateIconHash(ctx context.Context, userId int64, newHash string) error {
+	data := IconCacheData{
+		hash:   newHash,
+		userID: userId,
+	}
+
+	iconCacheMutex.Lock()
+	defer iconCacheMutex.Unlock()
+	iconCache[userId] = data
+
+	return nil
+}
+
+func purgeIconHash(ctx context.Context) error {
+	iconCacheMutex.Lock()
+	defer iconCacheMutex.Unlock()
+
+	iconCache = IconCach{}
+
+	return nil
 }
 
 func fetchIconByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int64) (map[int64]string, error) {
