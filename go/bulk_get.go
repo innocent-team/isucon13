@@ -83,23 +83,6 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 		userIds[i] = userModel.ID
 	}
 
-	// themesをbulk getする
-	themeByUserId := make(map[int64]ThemeModel)
-	{
-		query, args, err := sqlx.In("SELECT * FROM themes WHERE user_id IN (?)", userIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for themes: %w", err)
-		}
-
-		themeModels := []ThemeModel{}
-		if err := sqlx.SelectContext(ctx, db, &themeModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query themes: %w", err)
-		}
-		for _, themeModel := range themeModels {
-			themeByUserId[themeModel.UserID] = themeModel
-		}
-	}
-
 	// imagesをbulk getする
 	hashByUserId, err := getIconHashByIds(ctx, db, userIds)
 	if err != nil {
@@ -109,7 +92,6 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 	// User.ID -> User にして返す
 	userById := make(map[int64]User)
 	for _, userModel := range userModels {
-		themeModel := themeByUserId[userModel.ID]
 		iconHash := hashByUserId[userModel.ID]
 
 		user := User{
@@ -118,8 +100,8 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 			DisplayName: userModel.DisplayName,
 			Description: userModel.Description,
 			Theme: Theme{
-				ID:       themeModel.ID,
-				DarkMode: themeModel.DarkMode,
+				ID:       userModel.ID,
+				DarkMode: userModel.DarkMode,
 			},
 			IconHash: iconHash,
 		}
