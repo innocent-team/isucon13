@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const LivestreamCacheTTL = 30 * time.Second
+const LivestreamCacheTTL = 10 * time.Second
 
 var ErrLivestreamNotFound = errors.New("livestream not found")
 
