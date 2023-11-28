@@ -105,7 +105,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 	}
 
 	numResevedSlots := (req.EndAt - req.StartAt) / 3600
-	res, err := tx.ExecContext(ctx, "UPDATE reservation_slots SET slot = slot - 1 WHERE start_at >= ? AND end_at <= ?", req.StartAt, req.EndAt)
+	res, err := tx.ExecContext(ctx, "UPDATE reservation_slots SET slot = slot - 1 WHERE start_at >= ? AND end_at <= ? AND slot > 0", req.StartAt, req.EndAt)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update reservation_slot: "+err.Error())
 	}
