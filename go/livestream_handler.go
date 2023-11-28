@@ -56,7 +56,6 @@ type Livestream struct {
 }
 
 type LivestreamTagModel struct {
-	ID           int64 `db:"id" json:"id"`
 	LivestreamID int64 `db:"livestream_id" json:"livestream_id"`
 	TagID        int64 `db:"tag_id" json:"tag_id"`
 }
