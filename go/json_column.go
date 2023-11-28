@@ -8,15 +8,17 @@ import (
 
 type Int64ArrayJson []int64
 
-func (a Int64ArrayJson) Scan(src any) error {
+func (a *Int64ArrayJson) Scan(src any) error {
 	b, ok := src.([]byte)
 	if !ok {
 		return fmt.Errorf("invalid type: %T", src)
 	}
 
-	if err := json.Unmarshal(b, &a); err != nil {
+	var arr []int64
+	if err := json.Unmarshal(b, &arr); err != nil {
 		return fmt.Errorf("failed to unmarshal: %w", err)
 	}
+	*a = arr
 
 	return nil
 }
