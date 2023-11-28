@@ -63,7 +63,8 @@ CREATE TABLE `livestream_tags` (
   `livestream_id` BIGINT NOT NULL,
   `tag_id` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `livestream_tags` ADD FOREIGN KEY `livestream_tags_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+ALTER TABLE `livestream_tags` ADD KEY `livestream_tags_livestream_id` (`livestream_id`);
+ALTER TABLE `livestream_tags` ADD KEY `livestream_tags_tag_id` (`tag_id`);
 
 -- ライブ配信視聴履歴
 CREATE TABLE `livestream_viewers_history` (
@@ -122,4 +123,4 @@ CREATE TABLE `reactions` (
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 ALTER TABLE `reactions` ADD INDEX `reactions_user_id` (`user_id`);
-ALTER TABLE `reactions` ADD INDEX `reactions_livestream_id` (`livestream_id`);
+ALTER TABLE `reactions` ADD INDEX `reactions_livestream_id_created_at_desc` (`livestream_id`, `created_at` DESC);
