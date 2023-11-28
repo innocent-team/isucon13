@@ -111,7 +111,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 		c.Logger().Warnf("予約枠一覧取得でエラー発生: %+v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get reservation_slots: "+err.Error())
 	}
-	if numEmptySlot > 1 {
+	if numEmptySlot > 0 {
 		return echo.NewHTTPError(http.StatusBadRequest, "予約できません")
 	}
 	// ロックを解放するためにここでいったんcommitしておく
