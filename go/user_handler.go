@@ -113,16 +113,8 @@ func getIconHandler(c echo.Context) error {
 		return c.NoContent(http.StatusNotModified)
 	}
 
-	var image []byte
-	if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", user.ID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return c.File(fallbackImage)
-		} else {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user icon: "+err.Error())
-		}
-	}
-
-	return c.Blob(http.StatusOK, "image/jpeg", image)
+	c.Response().Header().Set("X-Accel-Redirect", "/_icon/"+hash+".jpg")
+	return c.NoContent(http.StatusOK)
 }
 
 func postIconHandler(c echo.Context) error {
