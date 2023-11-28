@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"time"
 
@@ -112,16 +113,12 @@ func getIconHandler(c echo.Context) error {
 		return c.NoContent(http.StatusNotModified)
 	}
 
-	var image []byte
-	if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", user.ID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return c.File(fallbackImage)
-		} else {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user icon: "+err.Error())
-		}
+	filename := hash+".jpg"
+	if hash == fallbackImageHash {
+		filename = "NoImage.jpg"
 	}
-
-	return c.Blob(http.StatusOK, "image/jpeg", image)
+	c.Response().Header().Set("X-Accel-Redirect", "/_icon/"+filename)
+	return c.NoContent(http.StatusOK)
 }
 
 func postIconHandler(c echo.Context) error {
@@ -149,7 +146,7 @@ func postIconHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	iconHash := fmt.Sprintf("%x", sha256.Sum256(req.Image))
-	rs, err := tx.ExecContext(ctx, "INSERT INTO icons (user_id, image, hash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image = ?, hash = ?", userID, req.Image, iconHash[:], req.Image, iconHash[:])
+	rs, err := tx.ExecContext(ctx, "INSERT INTO icons (user_id, image, hash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image = ?, hash = ?", userID, []byte{}, iconHash[:], []byte{}, iconHash[:])
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
 	}
@@ -161,6 +158,10 @@ func postIconHandler(c echo.Context) error {
 
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
+	}
+
+	if err := os.WriteFile("/home/isucon/webapp/img/"+iconHash+".jpg", req.Image, 0644); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to write file: "+err.Error())
 	}
 
 	return c.JSON(http.StatusCreated, &PostIconResponse{
