@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
+	"golang.org/x/exp/maps"
 
 	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
@@ -85,18 +86,12 @@ func bulkFillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModels [
 		return []Reaction{}, nil
 	}
 
-	userModels := []UserModel{}
-	{
-		userIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.UserID })
-		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, tx, &userModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query users: %w", err)
-		}
+	userIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.UserID })
+	userModels, err := fetchUsers(ctx, tx, userIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
 	}
-	userById, err := bulkFillUserResponse(ctx, tx, userModels)
+	userById, err := bulkFillUserResponse(ctx, tx, maps.Values(userModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
@@ -194,8 +189,8 @@ func postReactionHandler(c echo.Context) error {
 }
 
 func fillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModel ReactionModel) (Reaction, error) {
-	userModel := UserModel{}
-	if err := tx.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", reactionModel.UserID); err != nil {
+	userModel, err := fetchUser(ctx, tx, reactionModel.UserID)
+	if err != nil {
 		return Reaction{}, err
 	}
 	user, err := fillUserResponse(ctx, tx, userModel)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/exp/maps"
 )
 
 func bulkFillLivecommentResponse(ctx context.Context, db sqlx.QueryerContext, commentModels []LivecommentModel) ([]Livecomment, error) {
@@ -13,18 +14,12 @@ func bulkFillLivecommentResponse(ctx context.Context, db sqlx.QueryerContext, co
 		return []Livecomment{}, nil
 	}
 
-	var commentOwners []UserModel
-	{
-		commentUserIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.UserID })
-		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", commentUserIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, db, &commentOwners, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query users: %w", err)
-		}
+	commentUserIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.UserID })
+	commentOwners, err := fetchUsers(ctx, db, commentUserIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
 	}
-	userById, err := bulkFillUserResponse(ctx, db, commentOwners)
+	userById, err := bulkFillUserResponse(ctx, db, maps.Values(commentOwners))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
+	"golang.org/x/exp/maps"
 
 	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
@@ -487,20 +488,14 @@ func bulkFillLivestreamCommentResponse(ctx context.Context, tx *sqlx.Tx, reportM
 		return []LivecommentReport{}, nil
 	}
 
-	userModels := []UserModel{}
-	{
-		userIds := godash.Map(reportModels, func(r *LivecommentReportModel, _ int) int64 { return r.UserID })
-		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, tx, &userModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query users: %w", err)
-		}
-	}
-	userById, err := bulkFillUserResponse(ctx, tx, userModels)
+	userIds := godash.Map(reportModels, func(r *LivecommentReportModel, _ int) int64 { return r.UserID })
+	userModels, err := fetchUsers(ctx, tx, userIds)
 	if err != nil {
-		return nil, fmt.Errorf("bulkFillUserResponse: %w", err)
+		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
+	}
+	userById, err := bulkFillUserResponse(ctx, tx, maps.Values(userModels))
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
 	livecommentModels := []LivecommentModel{}
 	{
@@ -546,19 +541,13 @@ func bulkFillLivestreamResponse(ctx context.Context, tx sqlx.QueryerContext, liv
 		userIds[i] = livestreamModel.UserID
 	}
 
-	userModels := []UserModel{}
-	{
-		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, tx, &userModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query users: %w", err)
-		}
-	}
-	userById, err := bulkFillUserResponse(ctx, tx, userModels)
+	userModels, err := fetchUsers(ctx, tx, userIds)
 	if err != nil {
-		return nil, fmt.Errorf("bulkFillUserResponse: %w", err)
+		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
+	}
+	userById, err := bulkFillUserResponse(ctx, tx, maps.Values(userModels))
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
 	tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, tx, livestreamModels)
 	if err != nil {
