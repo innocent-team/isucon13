@@ -13,9 +13,7 @@ type IconCacheData struct {
 	userID int64
 }
 
-type IconCach map[int64]IconCacheData
-
-var iconCache = IconCach{}
+var iconCache = make(map[int64]IconCacheData)
 var iconCacheMutex = sync.RWMutex{}
 
 func getIconHashByIds(ctx context.Context, db sqlx.QueryerContext, userIds []int64) (map[int64]string, error) {
@@ -76,7 +74,7 @@ func purgeIconHash(ctx context.Context) error {
 	iconCacheMutex.Lock()
 	defer iconCacheMutex.Unlock()
 
-	iconCache = IconCach{}
+	iconCache = make(map[int64]IconCacheData)
 
 	return nil
 }
