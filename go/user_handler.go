@@ -36,6 +36,7 @@ type UserModel struct {
 	DisplayName    string `db:"display_name"`
 	Description    string `db:"description"`
 	HashedPassword string `db:"password"`
+	DarkMode       bool   `db:"dark_mode" json:"-"`
 }
 
 type User struct {
@@ -113,7 +114,7 @@ func getIconHandler(c echo.Context) error {
 		return c.NoContent(http.StatusNotModified)
 	}
 
-	filename := hash+".jpg"
+	filename := hash + ".jpg"
 	if hash == fallbackImageHash {
 		filename = "NoImage.jpg"
 	}
@@ -240,9 +241,10 @@ func registerHandler(c echo.Context) error {
 		DisplayName:    req.DisplayName,
 		Description:    req.Description,
 		HashedPassword: string(hashedPassword),
+		DarkMode:       req.Theme.DarkMode,
 	}
 
-	result, err := tx.NamedExecContext(ctx, "INSERT INTO users (name, display_name, description, password) VALUES(:name, :display_name, :description, :password)", userModel)
+	result, err := tx.NamedExecContext(ctx, "INSERT INTO users (name, display_name, description, password, dark_mode) VALUES(:name, :display_name, :description, :password, :dark_mode)", userModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user: "+err.Error())
 	}
@@ -253,14 +255,6 @@ func registerHandler(c echo.Context) error {
 	}
 
 	userModel.ID = userID
-
-	themeModel := ThemeModel{
-		UserID:   userID,
-		DarkMode: req.Theme.DarkMode,
-	}
-	if _, err := tx.NamedExecContext(ctx, "INSERT INTO themes (user_id, dark_mode) VALUES(:user_id, :dark_mode)", themeModel); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user theme: "+err.Error())
-	}
 
 	if out, err := exec.Command("pdnsutil", "add-record", "u.isucon.dev", req.Name, "A", "60", powerDNSSubdomainAddress).CombinedOutput(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, string(out)+": "+err.Error())
@@ -405,11 +399,6 @@ func verifyUserSession(c echo.Context) error {
 }
 
 func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
-	themeModel := ThemeModel{}
-	if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
-		return User{}, err
-	}
-
 	hashByUserId, err := getIconHashByIds(ctx, tx, []int64{userModel.ID})
 	if err != nil {
 		return User{}, err
@@ -422,8 +411,8 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		DisplayName: userModel.DisplayName,
 		Description: userModel.Description,
 		Theme: Theme{
-			ID:       themeModel.ID,
-			DarkMode: themeModel.DarkMode,
+			ID:       userModel.ID,
+			DarkMode: userModel.DarkMode,
 		},
 		IconHash: iconHash,
 	}
