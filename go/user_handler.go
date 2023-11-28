@@ -146,7 +146,7 @@ func postIconHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	iconHash := fmt.Sprintf("%x", sha256.Sum256(req.Image))
-	rs, err := tx.ExecContext(ctx, "INSERT INTO icons (user_id, image, hash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image = ?, hash = ?", userID, req.Image, iconHash[:], req.Image, iconHash[:])
+	rs, err := tx.ExecContext(ctx, "INSERT INTO icons (user_id, image, hash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image = ?, hash = ?", userID, req.Image, iconHash[:], []byte{}, iconHash[:])
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
 	}
