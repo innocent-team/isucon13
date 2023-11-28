@@ -122,23 +122,15 @@ func bulkGetTagsByLivestream(ctx context.Context, db sqlx.QueryerContext, livest
 		livestreamIds[i] = livestreamModel.ID
 	}
 
-	livestreamTagModels := godash.Flatten(godash.Map(livestreamModels, func(l *LivestreamModel, _ int) []*LivestreamTagModel {
-		return godash.Map([]int64(l.TagIds), func(tagId int64, _ int) *LivestreamTagModel {
-			return &LivestreamTagModel{
-				LivestreamID: l.ID,
-				TagID:        tagId,
-			}
-		})
-	}))
-
 	tagsByLivestreamId := make(map[int64][]Tag)
-	// nilにならないように空スライスを埋めておく
 	for _, livestreamModel := range livestreamModels {
+		// nilにならないように空スライスを埋めておく
 		tagsByLivestreamId[livestreamModel.ID] = make([]Tag, 0)
-	}
-	for _, livestreamTagModel := range livestreamTagModels {
-		tag := *tagsAll[livestreamTagModel.TagID]
-		tagsByLivestreamId[livestreamTagModel.LivestreamID] = append(tagsByLivestreamId[livestreamTagModel.LivestreamID], tag)
+		if len(livestreamModel.TagIds) > 0 {
+			tagsByLivestreamId[livestreamModel.ID] = godash.Map([]int64(livestreamModel.TagIds), func(tagId int64, _ int) Tag {
+				return *tagsAll[tagId]
+			})
+		}
 	}
 
 	return tagsByLivestreamId, nil
