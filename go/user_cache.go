@@ -34,7 +34,7 @@ func fetchUsers(ctx context.Context, tx sqlx.QueryerContext, userIds []int64) (m
 				notFoundUserIds = append(notFoundUserIds, userId)
 				continue
 			}
-			if userData.expiresAt.After(time.Now()) {
+			if time.Now().After(userData.expiresAt) {
 				notFoundUserIds = append(notFoundUserIds, userId)
 				continue
 			}
