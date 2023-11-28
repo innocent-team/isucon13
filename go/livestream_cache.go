@@ -9,7 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const LivestreamCacheTTL = 20 * time.Second
+const LivestreamCacheTTL = 10 * time.Second
 
 type LivestreamCacheData struct {
 	livestream *LivestreamModel
