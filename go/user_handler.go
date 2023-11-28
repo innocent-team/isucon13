@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"time"
 
@@ -161,6 +162,10 @@ func postIconHandler(c echo.Context) error {
 
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
+	}
+
+	if err := os.WriteFile("/home/isucon/webapp/img/"+iconHash+".jpg", req.Image, 0644); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to write file: "+err.Error())
 	}
 
 	return c.JSON(http.StatusCreated, &PostIconResponse{
