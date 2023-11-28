@@ -29,12 +29,11 @@ func fetchLivestreams(ctx context.Context, tx sqlx.QueryerContext, ids []int64) 
 
 	livestreamResp := make(map[int64]*LivestreamModel)
 	notFoundIds := func() []int64 {
-		livestreamCacheMu.RLock()
-		defer livestreamCacheMu.RUnlock()
-
 		var notFoundIds []int64
 		for _, livestreamId := range ids {
+			livestreamCacheMu.RLock()
 			data, ok := livestreamCacheMap[livestreamId]
+			livestreamCacheMu.RUnlock()
 			if !ok {
 				notFoundIds = append(notFoundIds, livestreamId)
 				continue
@@ -44,6 +43,12 @@ func fetchLivestreams(ctx context.Context, tx sqlx.QueryerContext, ids []int64) 
 				continue
 			}
 			livestreamResp[livestreamId] = data.livestream
+			livestreamCacheMu.Lock()
+			livestreamCacheMap[livestreamId] = LivestreamCacheData{
+				livestream: data.livestream,
+				expiresAt:  time.Now().Add(LivestreamCacheTTL),
+			}
+			livestreamCacheMu.Unlock()
 		}
 		return notFoundIds
 	}()
