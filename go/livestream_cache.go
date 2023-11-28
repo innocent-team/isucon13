@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -27,10 +28,11 @@ func fetchLivestreams(ctx context.Context, tx sqlx.QueryerContext, ids []int64) 
 		return make(map[int64]*LivestreamModel), nil
 	}
 
+	uniqIds := godash.Uniq(ids)
 	livestreamResp := make(map[int64]*LivestreamModel)
 	notFoundIds := func() []int64 {
 		var notFoundIds []int64
-		for _, livestreamId := range ids {
+		for _, livestreamId := range uniqIds {
 			livestreamCacheMu.RLock()
 			data, ok := livestreamCacheMap[livestreamId]
 			livestreamCacheMu.RUnlock()
