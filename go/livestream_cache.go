@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -10,6 +11,8 @@ import (
 )
 
 const LivestreamCacheTTL = 10 * time.Second
+
+var ErrLivestreamNotFound = errors.New("livestream not found")
 
 type LivestreamCacheData struct {
 	livestream *LivestreamModel
@@ -80,7 +83,7 @@ func fetchLivestream(ctx context.Context, tx sqlx.QueryerContext, id int64) (*Li
 	}
 	user, ok := userById[id]
 	if !ok {
-		return nil, fmt.Errorf("livestream %d not found", id)
+		return nil, ErrLivestreamNotFound
 	}
 	return user, nil
 }
