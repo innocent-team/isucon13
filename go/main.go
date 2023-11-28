@@ -142,8 +142,8 @@ func initializeHandler(c echo.Context) error {
 	}
 
 	var updateRows []struct {
-		Id          int64          `db:"id"`
-		TagListJson Int64ArrayJson `db:"tag_list_json"`
+		Id          int64  `db:"id"`
+		TagListJson string `db:"tag_list_json"`
 	}
 	{
 		query := "SELECT l.id, CONCAT('[',IFNULL(GROUP_CONCAT(lt.tag_id SEPARATOR ','),''),']') AS tag_list_json FROM livestreams l LEFT JOIN livestream_tags lt ON l.id = lt.livestream_id GROUP BY l.id"
