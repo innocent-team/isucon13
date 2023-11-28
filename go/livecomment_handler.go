@@ -184,9 +184,9 @@ func postLivecommentHandler(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	var livestreamModel LivestreamModel
-	if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	livestreamModel, err := fetchLivestream(ctx, tx, int64(livestreamID))
+	if err != nil {
+		if errors.Is(err, ErrLivestreamNotFound) {
 			return echo.NewHTTPError(http.StatusNotFound, "livestream not found")
 		} else {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
@@ -271,9 +271,8 @@ func reportLivecommentHandler(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	var livestreamModel LivestreamModel
-	if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	if _, err := fetchLivestream(ctx, tx, int64(livestreamID)); err != nil {
+		if errors.Is(err, ErrLivestreamNotFound) {
 			return echo.NewHTTPError(http.StatusNotFound, "livestream not found")
 		} else {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
@@ -399,11 +398,11 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 		return Livecomment{}, err
 	}
 
-	livestreamModel := LivestreamModel{}
-	if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livecommentModel.LivestreamID); err != nil {
+	livestreamModel, err := fetchLivestream(ctx, tx, livecommentModel.LivestreamID)
+	if err != nil {
 		return Livecomment{}, err
 	}
-	livestream, err := fillLivestreamResponse(ctx, tx, livestreamModel)
+	livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModel)
 	if err != nil {
 		return Livecomment{}, err
 	}

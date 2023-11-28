@@ -23,19 +23,13 @@ func bulkFillLivecommentResponse(ctx context.Context, db sqlx.QueryerContext, co
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
-	var livestreamModels []*LivestreamModel
-	{
-		commentLivestreamIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.LivestreamID })
-		query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", commentLivestreamIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, db, &livestreamModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query users: %w", err)
-		}
+	commentLivestreamIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.LivestreamID })
+	livestreamModels, err := fetchLivestreams(ctx, db, commentLivestreamIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetchLivestreams: %w", err)
 	}
 
-	liveStreams, err := bulkFillLivestreamResponse(ctx, db, livestreamModels)
+	liveStreams, err := bulkFillLivestreamResponse(ctx, db, maps.Values(livestreamModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillLivestreamResponse: %w", err)
 	}

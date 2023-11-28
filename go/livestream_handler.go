@@ -211,6 +211,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 				livestreamIds[i] = keyTaggedLivestream.LivestreamID
 			}
 
+			// ここのINクエリのキャッシュは諦める
 			query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?) ORDER BY id DESC", livestreamIds)
 			if err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query for livestreams: "+err.Error())
@@ -413,16 +414,15 @@ func getLivestreamHandler(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	livestreamModel := LivestreamModel{}
-	err = tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID)
-	if errors.Is(err, sql.ErrNoRows) {
+	livestreamModel, err := fetchLivestream(ctx, tx, int64(livestreamID))
+	if errors.Is(err, ErrLivestreamNotFound) {
 		return echo.NewHTTPError(http.StatusNotFound, "not found livestream that has the given id")
 	}
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
 	}
 
-	livestream, err := fillLivestreamResponse(ctx, tx, livestreamModel)
+	livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
 	}
@@ -452,8 +452,8 @@ func getLivecommentReportsHandler(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	var livestreamModel LivestreamModel
-	if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+	livestreamModel, err := fetchLivestream(ctx, tx, int64(livestreamID))
+	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
 	}
 
