@@ -591,11 +591,6 @@ func bulkFillLivestreamResponse(ctx context.Context, tx sqlx.QueryerContext, liv
 }
 
 func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel) (Livestream, error) {
-	var livestreamTagModels []*LivestreamTagModel
-	if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
-		return Livestream{}, err
-	}
-
 	livestreams, err := bulkFillLivestreamResponse(ctx, tx, []*LivestreamModel{&livestreamModel})
 	if err != nil {
 		return Livestream{}, err
