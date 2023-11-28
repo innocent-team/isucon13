@@ -122,18 +122,14 @@ func bulkGetTagsByLivestream(ctx context.Context, db sqlx.QueryerContext, livest
 		livestreamIds[i] = livestreamModel.ID
 	}
 
-	var livestreamTagModels []*LivestreamTagModel
-	query, args, err := sqlx.In("SELECT * FROM livestream_tags WHERE livestream_id IN (?)", livestreamIds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to construct IN query for livestream_tags: %w", err)
-	}
-	if err := sqlx.SelectContext(ctx, db, &livestreamTagModels, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to construct query livestream_tags: %w", err)
-	}
-	tagIds := make([]int64, len(livestreamTagModels))
-	for i, livestreamTagModel := range livestreamTagModels {
-		tagIds[i] = livestreamTagModel.TagID
-	}
+	livestreamTagModels := godash.Flatten(godash.Map(livestreamModels, func(l *LivestreamModel, _ int) []*LivestreamTagModel {
+		return godash.Map([]int64(l.TagIds), func(tagId int64, _ int) *LivestreamTagModel {
+			return &LivestreamTagModel{
+				LivestreamID: l.ID,
+				TagID:        tagId,
+			}
+		})
+	}))
 
 	tagsByLivestreamId := make(map[int64][]Tag)
 	// nilにならないように空スライスを埋めておく
