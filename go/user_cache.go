@@ -63,7 +63,7 @@ func fetchUsers(ctx context.Context, tx sqlx.QueryerContext, userIds []int64) (m
 		userResp[user.ID] = user
 		userCacheMap[user.ID] = UserCacheData{
 			user:      user,
-			expiresAt: time.Now().Add(1 * time.Second),
+			expiresAt: time.Now().Add(2 * time.Second),
 		}
 	}
 	userCacheMu.Unlock()
