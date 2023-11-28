@@ -211,6 +211,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 				livestreamIds[i] = keyTaggedLivestream.LivestreamID
 			}
 
+			// ここのINクエリのキャッシュは諦める
 			query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?) ORDER BY id DESC", livestreamIds)
 			if err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query for livestreams: "+err.Error())

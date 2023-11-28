@@ -95,18 +95,12 @@ func bulkFillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModels [
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
-	livestreamModels := []*LivestreamModel{}
-	{
-		livestreamIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.LivestreamID })
-		query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", livestreamIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for livestreams: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, tx, &livestreamModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query livestreams: %w", err)
-		}
+	livestreamIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.LivestreamID })
+	livestreamModels, err := fetchLivestreams(ctx, tx, livestreamIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetchLivestreams: %w", err)
 	}
-	livestreams, err := bulkFillLivestreamResponse(ctx, tx, livestreamModels)
+	livestreams, err := bulkFillLivestreamResponse(ctx, tx, maps.Values(livestreamModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillLivestreamResponse: %w", err)
 	}

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -140,6 +141,9 @@ func initializeHandler(c echo.Context) error {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
 	}
+
+	// Livestreamのキャッシュが完全に切れるのを待つ
+	time.Sleep(LivestreamCacheTTL)
 
 	var updateRows []struct {
 		Id          int64  `db:"id"`
