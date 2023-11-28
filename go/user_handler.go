@@ -113,7 +113,11 @@ func getIconHandler(c echo.Context) error {
 		return c.NoContent(http.StatusNotModified)
 	}
 
-	c.Response().Header().Set("X-Accel-Redirect", "/_icon/"+hash+".jpg")
+	filename := hash+".jpg"
+	if hash == fallbackImageHash {
+		filename = "NoImage.jpg"
+	}
+	c.Response().Header().Set("X-Accel-Redirect", "/_icon/"+filename)
 	return c.NoContent(http.StatusOK)
 }
 
