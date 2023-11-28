@@ -7495,3 +7495,5 @@ VALUES
 	(501, "お菓子作りライブ！手作りクッキーのレシピ", "一緒に美味しい手作りクッキーを作る時間。簡単なレシピを紹介します。", "https://media.xiii.isucon.dev/api/5/playlist.m3u8", "https://media.xiii.isucon.dev/isucon12_final.webp", 1698793200, 1698800400),
 	(502, "資産運用の基本！投資初心者のためのライブ", "資産運用や投資の基本的な知識を、専門家がわかりやすく説明します。", "https://media.xiii.isucon.dev/api/7/playlist.m3u8", "https://media.xiii.isucon.dev/yoru.webp", 1698793200, 1698800400),
 	(503, "映画クリティック！新作映画のレビュータイム", "映画評論家が新作映画の内容や見どころを詳しく説明します。", "https://media.xiii.isucon.dev/api/4/playlist.m3u8", "https://media.xiii.isucon.dev/isucon12_final.webp", 1698793200, 1698800400);
+
+ALTER TABLE `livestreams` ADD COLUMN `tag_ids` JSON NOT NULL AFTER `thumbnail_url`;

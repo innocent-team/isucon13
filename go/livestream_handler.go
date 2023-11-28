@@ -42,6 +42,8 @@ type LivestreamModel struct {
 	ThumbnailUrl string `db:"thumbnail_url" json:"thumbnail_url"`
 	StartAt      int64  `db:"start_at" json:"start_at"`
 	EndAt        int64  `db:"end_at" json:"end_at"`
+
+	TagIds Int64ArrayJson `db:"tag_ids" json:"-"`
 }
 
 type Livestream struct {
@@ -119,6 +121,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit transaction: "+err.Error())
 	}
 
+	tagIds := Int64ArrayJson(req.Tags)
 	var (
 		livestreamModel = &LivestreamModel{
 			UserID:       int64(userID),
@@ -128,6 +131,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 			ThumbnailUrl: req.ThumbnailUrl,
 			StartAt:      req.StartAt,
 			EndAt:        req.EndAt,
+			TagIds:       tagIds,
 		}
 	)
 
@@ -141,7 +145,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update reservation_slot: "+err.Error())
 	}
 
-	rs, err := tx2.NamedExecContext(ctx, "INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :start_at, :end_at)", livestreamModel)
+	rs, err := tx2.NamedExecContext(ctx, "INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, tag_ids, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :tag_ids, :start_at, :end_at)", livestreamModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livestream: "+err.Error())
 	}

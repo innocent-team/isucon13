@@ -134,9 +134,27 @@ func connectDB(logger echo.Logger, enableTracing bool) (*sqlx.DB, error) {
 }
 
 func initializeHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
 	if out, err := exec.Command("../sql/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+	}
+
+	var updateRows []struct {
+		Id          int64  `db:"id"`
+		TagListJson string `db:"tag_list_json"`
+	}
+	{
+		query := "SELECT l.id, CONCAT('[',IFNULL(GROUP_CONCAT(lt.tag_id SEPARATOR ','),''),']') AS tag_list_json FROM livestreams l LEFT JOIN livestream_tags lt ON l.id = lt.livestream_id GROUP BY l.id"
+		if err := dbConn.SelectContext(ctx, &updateRows, query); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+		}
+	}
+	for _, row := range updateRows {
+		if _, err := dbConn.ExecContext(ctx, "UPDATE livestreams SET tag_ids = ? WHERE id = ?", row.TagListJson, row.Id); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+		}
 	}
 
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
