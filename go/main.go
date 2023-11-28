@@ -140,6 +140,11 @@ func initializeHandler(c echo.Context) error {
 	}
 
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
+
+	if err := purgeIconHash(c.Request().Context()); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to purge icon cache: "+err.Error())
+	}
+
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "golang",
 	})
@@ -247,7 +252,7 @@ func main() {
 	// フロントエンドで、配信予約のコラボレーターを指定する際に必要
 	e.GET("/api/user/:username", getUserHandler)
 	e.GET("/api/user/:username/statistics", getUserStatisticsHandler)
-	e.GET("/api/user/:username/icon", getIconHandler)
+	e.GET("/api/user/:username/purgeIconHash", getIconHandler)
 	e.POST("/api/icon", postIconHandler)
 
 	// stats
