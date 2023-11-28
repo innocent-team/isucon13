@@ -59,7 +59,7 @@ CREATE TABLE `tags` (
 
 -- ライブ配信とタグの中間テーブル
 CREATE TABLE `livestream_tags` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, -- NOTE: initial_livestream_tags.sql でカラムを落とされる
   `livestream_id` BIGINT NOT NULL,
   `tag_id` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
