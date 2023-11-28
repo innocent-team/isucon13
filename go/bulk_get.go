@@ -83,17 +83,9 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 		userIds[i] = userModel.ID
 	}
 
-	// imagesをbulk getする
-	hashByUserId, err := getIconHashByIds(ctx, db, userIds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get icon hash by ids: %w", err)
-	}
-
 	// User.ID -> User にして返す
 	userById := make(map[int64]User)
 	for _, userModel := range userModels {
-		iconHash := hashByUserId[userModel.ID]
-
 		user := User{
 			ID:          userModel.ID,
 			Name:        userModel.Name,
@@ -103,7 +95,7 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 				ID:       userModel.ID,
 				DarkMode: userModel.DarkMode,
 			},
-			IconHash: iconHash,
+			IconHash: userModel.GetIconHash(),
 		}
 		userById[user.ID] = user
 	}
