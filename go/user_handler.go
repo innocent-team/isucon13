@@ -38,6 +38,16 @@ type UserModel struct {
 	Description    string `db:"description"`
 	HashedPassword string `db:"password"`
 	DarkMode       bool   `db:"dark_mode" json:"-"`
+
+	IconHash sql.NullString `db:"icon_hash" json:"-"`
+}
+
+func (u *UserModel) GetIconHash() string {
+	if u.IconHash.Valid {
+		return u.IconHash.String
+	} else {
+		return fallbackImageHash
+	}
 }
 
 type User struct {
@@ -106,11 +116,7 @@ func getIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	hash, err := getIconHashById(ctx, tx, user.ID)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user icon: "+err.Error())
-	}
-
+	hash := user.GetIconHash()
 	if c.Request().Header.Get("If-None-Match") == fmt.Sprintf("\"%s\"", hash) {
 		return c.NoContent(http.StatusNotModified)
 	}
@@ -148,6 +154,10 @@ func postIconHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	iconHash := fmt.Sprintf("%x", sha256.Sum256(req.Image))
+	if _, err := tx.ExecContext(ctx, "UPDATE users SET icon_hash = ? WHERE id = ?", iconHash, userID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update icon hash: "+err.Error())
+	}
+
 	rs, err := tx.ExecContext(ctx, "INSERT INTO icons (user_id, image, hash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image = ?, hash = ?", userID, []byte{}, iconHash[:], []byte{}, iconHash[:])
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
@@ -400,12 +410,6 @@ func verifyUserSession(c echo.Context) error {
 }
 
 func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
-	hashByUserId, err := getIconHashByIds(ctx, tx, []int64{userModel.ID})
-	if err != nil {
-		return User{}, err
-	}
-	iconHash := hashByUserId[userModel.ID]
-
 	user := User{
 		ID:          userModel.ID,
 		Name:        userModel.Name,
@@ -415,7 +419,7 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 			ID:       userModel.ID,
 			DarkMode: userModel.DarkMode,
 		},
-		IconHash: iconHash,
+		IconHash: userModel.GetIconHash(),
 	}
 
 	return user, nil
