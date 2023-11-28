@@ -259,6 +259,8 @@ func main() {
 
 	e.HTTPErrorHandler = errorResponseHandler
 
+	e.JSONSerializer = &JSONSerializer{}
+
 	// DB接続
 	conn, err := connectDB(e.Logger, enableTracing)
 	if err != nil {
