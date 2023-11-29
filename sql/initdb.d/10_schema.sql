@@ -73,9 +73,8 @@ CREATE TABLE `livestream_viewers_history` (
   `user_id` BIGINT NOT NULL,
   `livestream_id` BIGINT NOT NULL,
   `created_at` BIGINT NOT NULL,
-  PRIMARY KEY (`user_id`, `livestream_id`)
+  PRIMARY KEY (`livestream_id`, `user_id`)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `livestream_viewers_history` ADD KEY `livestream_viewers_history_livestream_id` (`livestream_id`);
 
 
 -- ライブ配信に対するライブコメント
