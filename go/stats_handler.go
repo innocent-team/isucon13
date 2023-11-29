@@ -252,7 +252,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 
 	// リアクション数
 	var totalReactions int64
-	if err := tx.GetContext(ctx, &totalReactions, "SELECT SUM(r.reaction_count) FROM livestreams l INNER JOIN reaction_per_livestream r ON r.livestream_id = l.id WHERE l.id = ?", livestreamID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.GetContext(ctx, &totalReactions, "SELECT reaction_count FROM reaction_per_livestream WHERE livestream_id = ?", livestreamID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to count total reactions: "+err.Error())
 	}
 
