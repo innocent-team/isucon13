@@ -111,7 +111,6 @@ func reserveLivestreamHandler(c echo.Context) error {
 	// NOTE: 並列な予約のoverbooking防止にFOR UPDATEが必要
 	var numEmptySlot int
 	if err := tx.GetContext(ctx, &numEmptySlot, "SELECT COUNT(*) FROM reservation_slots WHERE (start_at BETWEEN ? AND ?) AND end_at <= ? AND slot = 0 FOR UPDATE", req.StartAt, req.EndAt, req.EndAt); err != nil {
-		c.Logger().Warnf("予約枠一覧取得でエラー発生: %+v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get reservation_slots: "+err.Error())
 	}
 	if numEmptySlot > 0 {
