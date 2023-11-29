@@ -136,23 +136,23 @@ func postReactionHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "failed to decode the request body as json")
 	}
 
+	reactionID := time.Now().UnixNano()
 	reactionModel := ReactionModel{
+		ID:           reactionID,
 		UserID:       int64(userID),
 		LivestreamID: int64(livestreamID),
 		EmojiName:    req.EmojiName,
 		CreatedAt:    time.Now().Unix(),
 	}
 
-	result, err := dbConn.NamedExecContext(ctx, "INSERT INTO reactions (user_id, livestream_id, emoji_name, created_at) VALUES (:user_id, :livestream_id, :emoji_name, :created_at)", reactionModel)
+	_, err = dbConn.NamedExecContext(ctx, "INSERT INTO reactions (id, user_id, livestream_id, emoji_name, created_at) VALUES (:id, :user_id, :livestream_id, :emoji_name, :created_at)", reactionModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert reaction: "+err.Error())
 	}
 
-	reactionID, err := result.LastInsertId()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted reaction id: "+err.Error())
 	}
-	reactionModel.ID = reactionID
 
 	reaction, err := fillReactionResponse(ctx, dbConn, reactionModel)
 	if err != nil {

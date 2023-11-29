@@ -128,6 +128,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 	tagIds := Int64ArrayJson(req.Tags)
 	var (
 		livestreamModel = &LivestreamModel{
+			ID:           time.Now().UnixNano(),
 			UserID:       int64(userID),
 			Title:        req.Title,
 			Description:  req.Description,
@@ -139,20 +140,14 @@ func reserveLivestreamHandler(c echo.Context) error {
 		}
 	)
 
-	rs, err := dbConn.NamedExecContext(ctx, "INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, tag_ids, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :tag_ids, :start_at, :end_at)", livestreamModel)
+	_, err = dbConn.NamedExecContext(ctx, "INSERT INTO livestreams (id, user_id, title, description, playlist_url, thumbnail_url, tag_ids, start_at, end_at) VALUES(:id, :user_id, :title, :description, :playlist_url, :thumbnail_url, :tag_ids, :start_at, :end_at)", livestreamModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livestream: "+err.Error())
 	}
 
-	livestreamID, err := rs.LastInsertId()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted livestream id: "+err.Error())
-	}
-	livestreamModel.ID = livestreamID
-
 	ltModels := godash.Map(req.Tags, func(tagID int64, _ int) *LivestreamTagModel {
 		return &LivestreamTagModel{
-			LivestreamID: livestreamID,
+			LivestreamID: livestreamModel.ID,
 			TagID:        tagID,
 		}
 	})

@@ -186,7 +186,9 @@ func postLivecommentHandler(c echo.Context) error {
 	}
 
 	now := time.Now().Unix()
+	livecommentID := time.Now().UnixNano()
 	livecommentModel := LivecommentModel{
+		ID:           livecommentID,
 		UserID:       userID,
 		LivestreamID: int64(livestreamID),
 		Comment:      req.Comment,
@@ -194,16 +196,10 @@ func postLivecommentHandler(c echo.Context) error {
 		CreatedAt:    now,
 	}
 
-	rs, err := dbConn.NamedExecContext(ctx, "INSERT INTO livecomments (user_id, livestream_id, comment, tip, created_at) VALUES (:user_id, :livestream_id, :comment, :tip, :created_at)", livecommentModel)
+	_, err = dbConn.NamedExecContext(ctx, "INSERT INTO livecomments (id, user_id, livestream_id, comment, tip, created_at) VALUES (:id, :user_id, :livestream_id, :comment, :tip, :created_at)", livecommentModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livecomment: "+err.Error())
 	}
-
-	livecommentID, err := rs.LastInsertId()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted livecomment id: "+err.Error())
-	}
-	livecommentModel.ID = livecommentID
 
 	livecomment, err := fillLivecommentResponse(ctx, dbConn, livecommentModel)
 	if err != nil {
