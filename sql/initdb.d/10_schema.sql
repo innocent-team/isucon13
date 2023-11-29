@@ -70,13 +70,12 @@ ALTER TABLE `livestream_tags` ADD KEY `livestream_tags_tag_id` (`tag_id`);
 
 -- ライブ配信視聴履歴
 CREATE TABLE `livestream_viewers_history` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NOT NULL,
   `livestream_id` BIGINT NOT NULL,
-  `created_at` BIGINT NOT NULL
+  `created_at` BIGINT NOT NULL,
+  PRIMARY KEY (`user_id`, `livestream_id`)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `livestream_viewers_history` ADD FOREIGN KEY `livestream_viewers_history_user_id` (`user_id`) REFERENCES `users` (`id`);
-ALTER TABLE `livestream_viewers_history` ADD FOREIGN KEY `livestream_viewers_history_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+ALTER TABLE `livestream_viewers_history` ADD KEY `livestream_viewers_history_livestream_id` (`livestream_id`);
 
 
 -- ライブ配信に対するライブコメント
