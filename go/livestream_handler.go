@@ -399,27 +399,38 @@ func getLivestreamHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "livestream_id in path must be integer")
 	}
 
-	tx, err := dbConn.BeginTxx(ctx, nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin transaction: "+err.Error())
-	}
-	defer tx.Rollback()
-
-	livestreamModel, err := fetchLivestream(ctx, tx, int64(livestreamID))
+	livestreamModel, err := fetchLivestream(ctx, dbConn, int64(livestreamID))
 	if errors.Is(err, ErrLivestreamNotFound) {
 		return echo.NewHTTPError(http.StatusNotFound, "not found livestream that has the given id")
 	}
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
 	}
-
-	livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModel)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
-	}
-
-	if err := tx.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
+	var livestream Livestream
+	{
+		userModel, err := fetchUser(ctx, dbConn, livestreamModel.UserID)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fetchUser: "+err.Error())
+		}
+		user, err := fillUserResponse(ctx, userModel)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fillUserResponse: "+err.Error())
+		}
+		tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, []*LivestreamModel{livestreamModel})
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed bulkGetTagsByLivestream: "+err.Error())
+		}
+		livestream = Livestream{
+			ID:           livestreamModel.ID,
+			Owner:        user,
+			Title:        livestreamModel.Title,
+			Tags:         tagsByLivestreamId[livestreamModel.ID],
+			Description:  livestreamModel.Description,
+			PlaylistUrl:  livestreamModel.PlaylistUrl,
+			ThumbnailUrl: livestreamModel.ThumbnailUrl,
+			StartAt:      livestreamModel.StartAt,
+			EndAt:        livestreamModel.EndAt,
+		}
 	}
 
 	return c.JSON(http.StatusOK, livestream)
