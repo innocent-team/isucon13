@@ -235,13 +235,7 @@ func reportLivecommentHandler(c echo.Context) error {
 	// existence already checked
 	userID := sess.Values[defaultUserIDKey].(int64)
 
-	tx, err := dbConn.BeginTxx(ctx, nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin transaction: "+err.Error())
-	}
-	defer tx.Rollback()
-
-	if _, err := fetchLivestream(ctx, tx, int64(livestreamID)); err != nil {
+	if _, err := fetchLivestream(ctx, dbConn, int64(livestreamID)); err != nil {
 		if errors.Is(err, ErrLivestreamNotFound) {
 			return echo.NewHTTPError(http.StatusNotFound, "livestream not found")
 		} else {
@@ -250,7 +244,7 @@ func reportLivecommentHandler(c echo.Context) error {
 	}
 
 	var livecommentModel LivecommentModel
-	if err := tx.GetContext(ctx, &livecommentModel, "SELECT * FROM livecomments WHERE id = ?", livecommentID); err != nil {
+	if err := dbConn.GetContext(ctx, &livecommentModel, "SELECT * FROM livecomments WHERE id = ?", livecommentID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusNotFound, "livecomment not found")
 		} else {
@@ -265,7 +259,7 @@ func reportLivecommentHandler(c echo.Context) error {
 		LivecommentID: int64(livecommentID),
 		CreatedAt:     now,
 	}
-	rs, err := tx.NamedExecContext(ctx, "INSERT INTO livecomment_reports(user_id, livestream_id, livecomment_id, created_at) VALUES (:user_id, :livestream_id, :livecomment_id, :created_at)", &reportModel)
+	rs, err := dbConn.NamedExecContext(ctx, "INSERT INTO livecomment_reports(user_id, livestream_id, livecomment_id, created_at) VALUES (:user_id, :livestream_id, :livecomment_id, :created_at)", &reportModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livecomment report: "+err.Error())
 	}
@@ -275,12 +269,9 @@ func reportLivecommentHandler(c echo.Context) error {
 	}
 	reportModel.ID = reportID
 
-	report, err := fillLivecommentReportResponse(ctx, tx, reportModel)
+	report, err := fillLivecommentReportResponse(ctx, dbConn, reportModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomment report: "+err.Error())
-	}
-	if err := tx.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
 	return c.JSON(http.StatusCreated, report)
@@ -379,7 +370,7 @@ func fillLivecommentResponse(ctx context.Context, tx sqlx.QueryerContext, liveco
 	return livecomment, nil
 }
 
-func fillLivecommentReportResponse(ctx context.Context, tx *sqlx.Tx, reportModel LivecommentReportModel) (LivecommentReport, error) {
+func fillLivecommentReportResponse(ctx context.Context, tx sqlx.QueryerContext, reportModel LivecommentReportModel) (LivecommentReport, error) {
 	reporterModel, err := fetchUser(ctx, tx, reportModel.UserID)
 	if err != nil {
 		return LivecommentReport{}, err
@@ -390,7 +381,7 @@ func fillLivecommentReportResponse(ctx context.Context, tx *sqlx.Tx, reportModel
 	}
 
 	livecommentModel := LivecommentModel{}
-	if err := tx.GetContext(ctx, &livecommentModel, "SELECT * FROM livecomments WHERE id = ?", reportModel.LivecommentID); err != nil {
+	if err := sqlx.GetContext(ctx, tx, &livecommentModel, "SELECT * FROM livecomments WHERE id = ?", reportModel.LivecommentID); err != nil {
 		return LivecommentReport{}, err
 	}
 	livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModel)
