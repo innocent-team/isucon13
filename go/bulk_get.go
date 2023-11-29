@@ -93,7 +93,7 @@ func bulkFillUserResponse(ctx context.Context, userModels []UserModel) (map[int6
 }
 
 // Livestream.ID -> []Tag
-func bulkGetTagsByLivestream(ctx context.Context, db sqlx.QueryerContext, livestreamModels []*LivestreamModel) (map[int64][]Tag, error) {
+func bulkGetTagsByLivestream(ctx context.Context, livestreamModels []*LivestreamModel) (map[int64][]Tag, error) {
 	if len(livestreamModels) == 0 {
 		return nil, nil
 	}

@@ -549,7 +549,7 @@ func bulkFillLivestreamResponse(ctx context.Context, tx sqlx.QueryerContext, liv
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
-	tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, tx, livestreamModels)
+	tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, livestreamModels)
 	if err != nil {
 		return nil, fmt.Errorf("bulkGetTagsByLivestream: %w", err)
 	}
