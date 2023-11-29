@@ -91,7 +91,7 @@ func bulkFillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModels [
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
 	}
-	userById, err := bulkFillUserResponse(ctx, tx, maps.Values(userModels))
+	userById, err := bulkFillUserResponse(ctx, maps.Values(userModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
@@ -187,7 +187,7 @@ func fillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModel Reacti
 	if err != nil {
 		return Reaction{}, err
 	}
-	user, err := fillUserResponse(ctx, tx, userModel)
+	user, err := fillUserResponse(ctx, userModel)
 	if err != nil {
 		return Reaction{}, err
 	}

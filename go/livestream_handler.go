@@ -493,7 +493,7 @@ func bulkFillLivestreamCommentResponse(ctx context.Context, tx *sqlx.Tx, reportM
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
 	}
-	userById, err := bulkFillUserResponse(ctx, tx, maps.Values(userModels))
+	userById, err := bulkFillUserResponse(ctx, maps.Values(userModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
@@ -545,11 +545,11 @@ func bulkFillLivestreamResponse(ctx context.Context, tx sqlx.QueryerContext, liv
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
 	}
-	userById, err := bulkFillUserResponse(ctx, tx, maps.Values(userModels))
+	userById, err := bulkFillUserResponse(ctx, maps.Values(userModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
-	tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, tx, livestreamModels)
+	tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, livestreamModels)
 	if err != nil {
 		return nil, fmt.Errorf("bulkGetTagsByLivestream: %w", err)
 	}
