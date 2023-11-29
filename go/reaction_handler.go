@@ -170,6 +170,10 @@ func postReactionHandler(c echo.Context) error {
 	}
 	reactionModel.ID = reactionID
 
+	if _, err := tx.ExecContext(ctx, "UPDATE reaction_per_livestream SET reaction_count = reaction_count + 1 WHERE livestream_id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update reaction_per_livestream: "+err.Error())
+	}
+
 	reaction, err := fillReactionResponse(ctx, tx, reactionModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill reaction: "+err.Error())

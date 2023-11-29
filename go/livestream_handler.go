@@ -157,6 +157,10 @@ func reserveLivestreamHandler(c echo.Context) error {
 	}
 	livestreamModel.ID = livestreamID
 
+	if _, err := tx2.ExecContext(ctx, "INSERT INTO reaction_per_livestream (livestream_id, reaction_count) VALUES (?, 0)", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert reaction_per_livestream: "+err.Error())
+	}
+
 	ltModels := godash.Map(req.Tags, func(tagID int64, _ int) *LivestreamTagModel {
 		return &LivestreamTagModel{
 			LivestreamID: livestreamID,

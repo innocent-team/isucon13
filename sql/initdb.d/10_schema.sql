@@ -78,6 +78,11 @@ CREATE TABLE `livestream_viewers_history` (
 ALTER TABLE `livestream_viewers_history` ADD FOREIGN KEY `livestream_viewers_history_user_id` (`user_id`) REFERENCES `users` (`id`);
 ALTER TABLE `livestream_viewers_history` ADD FOREIGN KEY `livestream_viewers_history_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
 
+-- ライブ配信についたリアクション数
+CREATE TABLE `reaction_per_livestream` (
+  `livestream_id` BIGINT NOT NULL PRIMARY KEY,
+  `reaction_count` BIGINT NOT NULL
+) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- ライブ配信に対するライブコメント
 CREATE TABLE `livecomments` (
