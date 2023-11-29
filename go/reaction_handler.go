@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/goccy/go-json"
+	"golang.org/x/exp/maps"
 
 	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
@@ -47,12 +49,6 @@ func getReactionsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "livestream_id in path must be integer")
 	}
 
-	tx, err := dbConn.BeginTxx(ctx, nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin transaction: "+err.Error())
-	}
-	defer tx.Rollback()
-
 	query := "SELECT * FROM reactions WHERE livestream_id = ? ORDER BY created_at DESC"
 	if c.QueryParam("limit") != "" {
 		limit, err := strconv.Atoi(c.QueryParam("limit"))
@@ -63,54 +59,38 @@ func getReactionsHandler(c echo.Context) error {
 	}
 
 	reactionModels := []ReactionModel{}
-	if err := tx.SelectContext(ctx, &reactionModels, query, livestreamID); err != nil {
+	if err := dbConn.SelectContext(ctx, &reactionModels, query, livestreamID); err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "failed to get reactions")
 	}
 
-	reactions, err := bulkFillReactionResponse(ctx, tx, reactionModels)
+	reactions, err := bulkFillReactionResponse(ctx, dbConn, reactionModels)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to bulkFillReactionResponse: "+err.Error())
-	}
-
-	if err := tx.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
 	return c.JSON(http.StatusOK, reactions)
 }
 
-func bulkFillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModels []ReactionModel) ([]Reaction, error) {
+func bulkFillReactionResponse(ctx context.Context, tx sqlx.QueryerContext, reactionModels []ReactionModel) ([]Reaction, error) {
 	if len(reactionModels) == 0 {
 		return []Reaction{}, nil
 	}
 
-	userModels := []UserModel{}
-	{
-		userIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.UserID })
-		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for users: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, tx, &userModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query users: %w", err)
-		}
+	userIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.UserID })
+	userModels, err := fetchUsers(ctx, tx, userIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
 	}
-	userById, err := bulkFillUserResponse(ctx, tx, userModels)
+	userById, err := bulkFillUserResponse(ctx, maps.Values(userModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
-	livestreamModels := []*LivestreamModel{}
-	{
-		livestreamIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.LivestreamID })
-		query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", livestreamIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for livestreams: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, tx, &livestreamModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query livestreams: %w", err)
-		}
+	livestreamIds := godash.Map(reactionModels, func(r ReactionModel, _ int) int64 { return r.LivestreamID })
+	livestreamModels, err := fetchLivestreams(ctx, tx, livestreamIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetchLivestreams: %w", err)
 	}
-	livestreams, err := bulkFillLivestreamResponse(ctx, tx, livestreamModels)
+	livestreams, err := bulkFillLivestreamResponse(ctx, tx, maps.Values(livestreamModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillLivestreamResponse: %w", err)
 	}
@@ -156,12 +136,6 @@ func postReactionHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "failed to decode the request body as json")
 	}
 
-	tx, err := dbConn.BeginTxx(ctx, nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin transaction: "+err.Error())
-	}
-	defer tx.Rollback()
-
 	reactionModel := ReactionModel{
 		UserID:       int64(userID),
 		LivestreamID: int64(livestreamID),
@@ -169,7 +143,7 @@ func postReactionHandler(c echo.Context) error {
 		CreatedAt:    time.Now().Unix(),
 	}
 
-	result, err := tx.NamedExecContext(ctx, "INSERT INTO reactions (user_id, livestream_id, emoji_name, created_at) VALUES (:user_id, :livestream_id, :emoji_name, :created_at)", reactionModel)
+	result, err := dbConn.NamedExecContext(ctx, "INSERT INTO reactions (user_id, livestream_id, emoji_name, created_at) VALUES (:user_id, :livestream_id, :emoji_name, :created_at)", reactionModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert reaction: "+err.Error())
 	}
@@ -180,33 +154,29 @@ func postReactionHandler(c echo.Context) error {
 	}
 	reactionModel.ID = reactionID
 
-	reaction, err := fillReactionResponse(ctx, tx, reactionModel)
+	reaction, err := fillReactionResponse(ctx, dbConn, reactionModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill reaction: "+err.Error())
-	}
-
-	if err := tx.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
 	return c.JSON(http.StatusCreated, reaction)
 }
 
-func fillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModel ReactionModel) (Reaction, error) {
-	userModel := UserModel{}
-	if err := tx.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", reactionModel.UserID); err != nil {
+func fillReactionResponse(ctx context.Context, tx sqlx.QueryerContext, reactionModel ReactionModel) (Reaction, error) {
+	userModel, err := fetchUser(ctx, tx, reactionModel.UserID)
+	if err != nil {
 		return Reaction{}, err
 	}
-	user, err := fillUserResponse(ctx, tx, userModel)
+	user, err := fillUserResponse(ctx, userModel)
 	if err != nil {
 		return Reaction{}, err
 	}
 
-	livestreamModel := LivestreamModel{}
-	if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", reactionModel.LivestreamID); err != nil {
+	livestreamModel, err := fetchLivestream(ctx, tx, reactionModel.LivestreamID)
+	if err != nil {
 		return Reaction{}, err
 	}
-	livestream, err := fillLivestreamResponse(ctx, tx, livestreamModel)
+	livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModel)
 	if err != nil {
 		return Reaction{}, err
 	}

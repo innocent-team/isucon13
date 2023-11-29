@@ -6,6 +6,7 @@ import (
 
 	"github.com/hatena/godash"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/exp/maps"
 )
 
 func bulkFillLivecommentResponse(ctx context.Context, db sqlx.QueryerContext, commentModels []LivecommentModel) ([]Livecomment, error) {
@@ -13,34 +14,22 @@ func bulkFillLivecommentResponse(ctx context.Context, db sqlx.QueryerContext, co
 		return []Livecomment{}, nil
 	}
 
-	var commentOwners []UserModel
-	{
-		commentUserIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.UserID })
-		query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", commentUserIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, db, &commentOwners, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query users: %w", err)
-		}
+	commentUserIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.UserID })
+	commentOwners, err := fetchUsers(ctx, db, commentUserIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
 	}
-	userById, err := bulkFillUserResponse(ctx, db, commentOwners)
+	userById, err := bulkFillUserResponse(ctx, maps.Values(commentOwners))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
-	var livestreamModels []*LivestreamModel
-	{
-		commentLivestreamIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.LivestreamID })
-		query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", commentLivestreamIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query: %w", err)
-		}
-		if err := sqlx.SelectContext(ctx, db, &livestreamModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query users: %w", err)
-		}
+	commentLivestreamIds := godash.Map(commentModels, func(c LivecommentModel, _ int) int64 { return c.LivestreamID })
+	livestreamModels, err := fetchLivestreams(ctx, db, commentLivestreamIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetchLivestreams: %w", err)
 	}
 
-	liveStreams, err := bulkFillLivestreamResponse(ctx, db, livestreamModels)
+	liveStreams, err := bulkFillLivestreamResponse(ctx, db, maps.Values(livestreamModels))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillLivestreamResponse: %w", err)
 	}
@@ -73,7 +62,7 @@ type ImageModel struct {
 	Hash   string `db:"hash"`
 }
 
-func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModels []UserModel) (map[int64]User, error) {
+func bulkFillUserResponse(ctx context.Context, userModels []UserModel) (map[int64]User, error) {
 	if len(userModels) == 0 {
 		return make(map[int64]User), nil
 	}
@@ -83,45 +72,19 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 		userIds[i] = userModel.ID
 	}
 
-	// themesをbulk getする
-	themeByUserId := make(map[int64]ThemeModel)
-	{
-		query, args, err := sqlx.In("SELECT * FROM themes WHERE user_id IN (?)", userIds)
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct IN query for themes: %w", err)
-		}
-
-		themeModels := []ThemeModel{}
-		if err := sqlx.SelectContext(ctx, db, &themeModels, query, args...); err != nil {
-			return nil, fmt.Errorf("failed to query themes: %w", err)
-		}
-		for _, themeModel := range themeModels {
-			themeByUserId[themeModel.UserID] = themeModel
-		}
-	}
-
-	// imagesをbulk getする
-	hashByUserId, err := getIconHashByIds(ctx, db, userIds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get icon hash by ids: %w", err)
-	}
-
 	// User.ID -> User にして返す
 	userById := make(map[int64]User)
 	for _, userModel := range userModels {
-		themeModel := themeByUserId[userModel.ID]
-		iconHash := hashByUserId[userModel.ID]
-
 		user := User{
 			ID:          userModel.ID,
 			Name:        userModel.Name,
 			DisplayName: userModel.DisplayName,
 			Description: userModel.Description,
 			Theme: Theme{
-				ID:       themeModel.ID,
-				DarkMode: themeModel.DarkMode,
+				ID:       userModel.ID,
+				DarkMode: userModel.DarkMode,
 			},
-			IconHash: iconHash,
+			IconHash: userModel.GetIconHash(),
 		}
 		userById[user.ID] = user
 	}
@@ -130,7 +93,7 @@ func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModel
 }
 
 // Livestream.ID -> []Tag
-func bulkGetTagsByLivestream(ctx context.Context, db sqlx.QueryerContext, livestreamModels []*LivestreamModel) (map[int64][]Tag, error) {
+func bulkGetTagsByLivestream(ctx context.Context, livestreamModels []*LivestreamModel) (map[int64][]Tag, error) {
 	if len(livestreamModels) == 0 {
 		return nil, nil
 	}
@@ -140,27 +103,15 @@ func bulkGetTagsByLivestream(ctx context.Context, db sqlx.QueryerContext, livest
 		livestreamIds[i] = livestreamModel.ID
 	}
 
-	var livestreamTagModels []*LivestreamTagModel
-	query, args, err := sqlx.In("SELECT * FROM livestream_tags WHERE livestream_id IN (?)", livestreamIds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to construct IN query for livestream_tags: %w", err)
-	}
-	if err := sqlx.SelectContext(ctx, db, &livestreamTagModels, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to construct query livestream_tags: %w", err)
-	}
-	tagIds := make([]int64, len(livestreamTagModels))
-	for i, livestreamTagModel := range livestreamTagModels {
-		tagIds[i] = livestreamTagModel.TagID
-	}
-
 	tagsByLivestreamId := make(map[int64][]Tag)
-	// nilにならないように空スライスを埋めておく
 	for _, livestreamModel := range livestreamModels {
+		// nilにならないように空スライスを埋めておく
 		tagsByLivestreamId[livestreamModel.ID] = make([]Tag, 0)
-	}
-	for _, livestreamTagModel := range livestreamTagModels {
-		tag := *tagsAll[livestreamTagModel.TagID]
-		tagsByLivestreamId[livestreamTagModel.LivestreamID] = append(tagsByLivestreamId[livestreamTagModel.LivestreamID], tag)
+		if len(livestreamModel.TagIds) > 0 {
+			tagsByLivestreamId[livestreamModel.ID] = godash.Map([]int64(livestreamModel.TagIds), func(tagId int64, _ int) Tag {
+				return *tagsAll[tagId]
+			})
+		}
 	}
 
 	return tagsByLivestreamId, nil

@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/profiler v0.4.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.21.0
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.3.1
 	github.com/gorilla/sessions v1.2.2
 	github.com/hatena/godash v1.0.3

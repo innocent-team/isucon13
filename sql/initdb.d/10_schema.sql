@@ -7,6 +7,8 @@ CREATE TABLE `users` (
   `display_name` VARCHAR(255) NOT NULL,
   `password` VARCHAR(255) NOT NULL,
   `description` TEXT NOT NULL,
+  `dark_mode` BOOLEAN NOT NULL DEFAULT FALSE,
+  `icon_hash` VARCHAR(255) DEFAULT NULL,
   UNIQUE `uniq_user_name` (`name`)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
@@ -15,9 +17,9 @@ CREATE TABLE `icons` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NOT NULL,
   `image` LONGBLOB NOT NULL,
-  `hash` VARCHAR(255) NOT NULL
+  `hash` VARCHAR(255) NOT NULL,
+  UNIQUE `user_id` (`user_id`)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `icons` ADD FOREIGN KEY `icons_user_id` (`user_id`) REFERENCES `users` (`id`);
 
 -- ユーザごとのカスタムテーマ
 CREATE TABLE `themes` (
@@ -35,6 +37,7 @@ CREATE TABLE `livestreams` (
   `description` text NOT NULL,
   `playlist_url` VARCHAR(255) NOT NULL,
   `thumbnail_url` VARCHAR(255) NOT NULL,
+  -- `tag_ids` JSON NOT NULL, -- あとでたす
   `start_at` BIGINT NOT NULL,
   `end_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
@@ -58,11 +61,12 @@ CREATE TABLE `tags` (
 
 -- ライブ配信とタグの中間テーブル
 CREATE TABLE `livestream_tags` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, -- NOTE: initial_livestream_tags.sql でカラムを落とされる
   `livestream_id` BIGINT NOT NULL,
   `tag_id` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `livestream_tags` ADD FOREIGN KEY `livestream_tags_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+ALTER TABLE `livestream_tags` ADD KEY `livestream_tags_livestream_id` (`livestream_id`);
+ALTER TABLE `livestream_tags` ADD KEY `livestream_tags_tag_id` (`tag_id`);
 
 -- ライブ配信視聴履歴
 CREATE TABLE `livestream_viewers_history` (
@@ -84,8 +88,8 @@ CREATE TABLE `livecomments` (
   `tip` BIGINT NOT NULL DEFAULT 0,
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `livecomments` ADD FOREIGN KEY `livecomments_user_id` (`user_id`) REFERENCES `users` (`id`);
-ALTER TABLE `livecomments` ADD FOREIGN KEY `livecomments_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+ALTER TABLE `livecomments` ADD KEY `livecomments_user_id` (`user_id`);
+ALTER TABLE `livecomments` ADD KEY `livecomments_livestream_id_created_at_desc` (`livestream_id`, `created_at` DESC);
 
 -- ユーザからのライブコメントのスパム報告
 CREATE TABLE `livecomment_reports` (
@@ -120,5 +124,5 @@ CREATE TABLE `reactions` (
   `emoji_name` VARCHAR(255) NOT NULL,
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-ALTER TABLE `reactions` ADD FOREIGN KEY `reactions_user_id` (`user_id`) REFERENCES `users` (`id`);
-ALTER TABLE `reactions` ADD FOREIGN KEY `reactions_livestream_id` (`livestream_id`) REFERENCES `livestreams` (`id`);
+ALTER TABLE `reactions` ADD INDEX `reactions_user_id` (`user_id`);
+ALTER TABLE `reactions` ADD INDEX `reactions_livestream_id_created_at_desc` (`livestream_id`, `created_at` DESC);

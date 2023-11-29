@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -53,7 +54,7 @@ type InitializeResponse struct {
 	Language string `json:"language"`
 }
 
-func connectDB(logger echo.Logger) (*sqlx.DB, error) {
+func connectDB(logger echo.Logger, enableTracing bool) (*sqlx.DB, error) {
 	const (
 		networkTypeEnvKey = "ISUCON13_MYSQL_DIALCONFIG_NET"
 		addrEnvKey        = "ISUCON13_MYSQL_DIALCONFIG_ADDRESS"
@@ -103,17 +104,21 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 		conf.ParseTime = parseTime
 	}
 
+	driverName := "mysql"
 	// Register the otelsql wrapper for the provided postgres driver.
-	driverName, err := otelsql.Register("mysql",
-		otelsql.AllowRoot(),
-		otelsql.TraceQueryWithoutArgs(),
-		otelsql.TraceRowsClose(),
-		otelsql.TraceRowsAffected(),
-		otelsql.WithDatabaseName("isupipe"),
-		otelsql.WithSystem(semconv.DBSystemMySQL),
-	)
-	if err != nil {
-		return nil, err
+	if enableTracing {
+		name, err := otelsql.Register("mysql",
+			otelsql.AllowRoot(),
+			otelsql.TraceQueryWithoutArgs(),
+			otelsql.TraceRowsClose(),
+			otelsql.TraceRowsAffected(),
+			otelsql.WithDatabaseName("isupipe"),
+			otelsql.WithSystem(semconv.DBSystemMySQL),
+		)
+		if err != nil {
+			return nil, err
+		}
+		driverName = name
 	}
 	db, err := sqlx.Open(driverName, conf.FormatDSN())
 	if err != nil {
@@ -130,9 +135,30 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 }
 
 func initializeHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
 	if out, err := exec.Command("../sql/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+	}
+
+	// Livestreamのキャッシュが完全に切れるのを待つ
+	time.Sleep(LivestreamCacheTTL)
+
+	var updateRows []struct {
+		Id          int64  `db:"id"`
+		TagListJson string `db:"tag_list_json"`
+	}
+	{
+		query := "SELECT l.id, CONCAT('[',IFNULL(GROUP_CONCAT(lt.tag_id SEPARATOR ','),''),']') AS tag_list_json FROM livestreams l LEFT JOIN livestream_tags lt ON l.id = lt.livestream_id GROUP BY l.id"
+		if err := dbConn.SelectContext(ctx, &updateRows, query); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+		}
+	}
+	for _, row := range updateRows {
+		if _, err := dbConn.ExecContext(ctx, "UPDATE livestreams SET tag_ids = ? WHERE id = ?", row.TagListJson, row.Id); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+		}
 	}
 
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
@@ -144,29 +170,42 @@ func initializeHandler(c echo.Context) error {
 var fallbackImageHash = "undef"
 
 func main() {
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	cfg := profiler.Config{
-		Service: "isuports",
-		// HHmmss-MMDD
-		ServiceVersion: "101700-1125",
-		// ProjectID must be set if not running on GCP.
-		ProjectID: projectID,
-
-		// For OpenCensus users:
-		// To see Profiler agent spans in APM backend,
-		// set EnableOCTelemetry to true
-		// EnableOCTelemetry: true,
-	}
-
-	// Profiler initialization, best done as early as possible.
-	if err := profiler.Start(cfg); err != nil {
-		log.Fatal(err)
-	}
-	// Create exporter.
 	ctx := context.Background()
-	exporter, err := texporter.New(texporter.WithProjectID(projectID))
-	if err != nil {
-		log.Fatalf("texporter.NewExporter: %v", err)
+	enableTracing := os.Getenv("ENABLE_TRACING") == "true"
+	if enableTracing {
+		projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+		cfg := profiler.Config{
+			Service: "isuports",
+			// HHmmss-MMDD
+			ServiceVersion: "101700-1125",
+			// ProjectID must be set if not running on GCP.
+			ProjectID: projectID,
+
+			// For OpenCensus users:
+			// To see Profiler agent spans in APM backend,
+			// set EnableOCTelemetry to true
+			// EnableOCTelemetry: true,
+		}
+
+		// Profiler initialization, best done as early as possible.
+		if err := profiler.Start(cfg); err != nil {
+			log.Fatal(err)
+		}
+		// Create exporter.
+		exporter, err := texporter.New(texporter.WithProjectID(projectID))
+		if err != nil {
+			log.Fatalf("texporter.NewExporter: %v", err)
+		}
+		// Create trace provider with the exporter.
+		//
+		// By default it uses AlwaysSample() which samples all traces.
+		// In a production environment or high QPS setup please use
+		// probabilistic sampling.
+		// Example:
+		//   tp := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.TraceIDRatioBased(0.0001)), ...)
+		tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+		defer tp.ForceFlush(ctx) // flushes any pending spans
+		otel.SetTracerProvider(tp)
 	}
 
 	fallbackImageData, err := os.ReadFile(fallbackImage)
@@ -175,17 +214,6 @@ func main() {
 	}
 	fallbackImageHash = fmt.Sprintf("%x", sha256.Sum256([]byte(fallbackImageData)))
 
-	// Create trace provider with the exporter.
-	//
-	// By default it uses AlwaysSample() which samples all traces.
-	// In a production environment or high QPS setup please use
-	// probabilistic sampling.
-	// Example:
-	//   tp := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.TraceIDRatioBased(0.0001)), ...)
-	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
-	defer tp.ForceFlush(ctx) // flushes any pending spans
-	otel.SetTracerProvider(tp)
-
 	e := echo.New()
 	e.Logger.SetLevel(echolog.DEBUG)
 	// e.Use(middleware.Logger())
@@ -193,7 +221,9 @@ func main() {
 	cookieStore.Options.Domain = "*.u.isucon.dev"
 	e.Use(session.Middleware(cookieStore))
 	// e.Use(middleware.Recover())
-	e.Use(otelecho.Middleware("isucon13"))
+	if enableTracing {
+		e.Use(otelecho.Middleware("isucon13"))
+	}
 
 	// 初期化
 	e.POST("/api/initialize", initializeHandler)
@@ -251,8 +281,10 @@ func main() {
 
 	e.HTTPErrorHandler = errorResponseHandler
 
+	e.JSONSerializer = &JSONSerializer{}
+
 	// DB接続
-	conn, err := connectDB(e.Logger)
+	conn, err := connectDB(e.Logger, enableTracing)
 	if err != nil {
 		e.Logger.Errorf("failed to connect db: %v", err)
 		os.Exit(1)
