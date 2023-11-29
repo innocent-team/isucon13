@@ -146,7 +146,11 @@ func reserveLivestreamHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update reservation_slot: "+err.Error())
 	}
 
-	rs, err := tx2.NamedExecContext(ctx, "INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, tag_ids, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :tag_ids, :start_at, :end_at)", livestreamModel)
+	if err := tx2.Commit(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
+	}
+
+	rs, err := dbConn.NamedExecContext(ctx, "INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, tag_ids, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :tag_ids, :start_at, :end_at)", livestreamModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livestream: "+err.Error())
 	}
@@ -165,18 +169,36 @@ func reserveLivestreamHandler(c echo.Context) error {
 	})
 	// タグ追加
 	if len(ltModels) > 0 {
-		if _, err := tx2.NamedExecContext(ctx, "INSERT INTO livestream_tags (livestream_id, tag_id) VALUES (:livestream_id, :tag_id)", ltModels); err != nil {
+		if _, err := dbConn.NamedExecContext(ctx, "INSERT INTO livestream_tags (livestream_id, tag_id) VALUES (:livestream_id, :tag_id)", ltModels); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livestream tag: "+err.Error())
 		}
 	}
 
-	livestream, err := fillLivestreamResponse(ctx, tx2, *livestreamModel)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
-	}
-
-	if err := tx2.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
+	var livestream Livestream
+	{
+		userModel, err := fetchUser(ctx, dbConn, userID)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fetchUser: "+err.Error())
+		}
+		user, err := fillUserResponse(ctx, userModel)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fillUserResponse: "+err.Error())
+		}
+		tagsByLivestreamId, err := bulkGetTagsByLivestream(ctx, []*LivestreamModel{livestreamModel})
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed bulkGetTagsByLivestream: "+err.Error())
+		}
+		livestream = Livestream{
+			ID:           livestreamModel.ID,
+			Owner:        user,
+			Title:        livestreamModel.Title,
+			Tags:         tagsByLivestreamId[livestreamModel.ID],
+			Description:  livestreamModel.Description,
+			PlaylistUrl:  livestreamModel.PlaylistUrl,
+			ThumbnailUrl: livestreamModel.ThumbnailUrl,
+			StartAt:      livestreamModel.StartAt,
+			EndAt:        livestreamModel.EndAt,
+		}
 	}
 
 	return c.JSON(http.StatusCreated, livestream)
