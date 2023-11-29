@@ -92,7 +92,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	{
 		query := `
 		WITH reaction_per_user AS (
-			SELECT l.user_id, IFNULL(SUM(r.reaction_count), 0) AS reaction_count FROM reaction_per_livestream r
+			SELECT l.user_id, COUNT(*) AS reaction_count FROM reactions r
 			LEFT JOIN livestreams l ON l.id = r.livestream_id GROUP BY l.user_id
 		  ), tip_per_user AS (
 			SELECT l.user_id, IFNULL(SUM(lc.tip), 0) AS sum_tip FROM livecomments lc
@@ -109,9 +109,9 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// リアクション数
 	var totalReactions int64
-	query := `SELECT IFNULL(SUM(r.reaction_count), 0) FROM users u 
+	query := `SELECT COUNT(*) FROM users u 
     INNER JOIN livestreams l ON l.user_id = u.id 
-    INNER JOIN reaction_per_livestream r ON r.livestream_id = l.id
+    INNER JOIN reactions r ON r.livestream_id = l.id
     WHERE u.name = ?
 	`
 	if err := tx.GetContext(ctx, &totalReactions, query, username); err != nil && !errors.Is(err, sql.ErrNoRows) {
