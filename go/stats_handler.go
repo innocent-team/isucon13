@@ -259,7 +259,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 
 	// スパム報告数
 	var totalReports int64
-	if err := tx.GetContext(ctx, &totalReports, `SELECT COUNT(*) FROM livecomment_reports livestream_id = ?`, livestreamID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.GetContext(ctx, &totalReports, `SELECT COUNT(*) FROM livecomment_reports WHERE livestream_id = ?`, livestreamID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to count total spam reports: "+err.Error())
 	}
 
