@@ -92,7 +92,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	{
 		query := `
 		WITH reaction_per_user AS (
-			SELECT l.user_id, COUNT(*) AS reaction_count FROM reactions r
+			SELECT l.user_id, SUM(r.reaction_count) AS reaction_count FROM reaction_per_livestream r
 			LEFT JOIN livestreams l ON l.id = r.livestream_id GROUP BY l.user_id
 		  ), tip_per_user AS (
 			SELECT l.user_id, IFNULL(SUM(lc.tip), 0) AS sum_tip FROM livecomments lc
@@ -109,9 +109,9 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// リアクション数
 	var totalReactions int64
-	query := `SELECT COUNT(*) FROM users u 
+	query := `SELECT SUM(r.reaction_count) FROM users u 
     INNER JOIN livestreams l ON l.user_id = u.id 
-    INNER JOIN reactions r ON r.livestream_id = l.id
+    INNER JOIN reaction_per_livestream r ON r.livestream_id = l.id
     WHERE u.name = ?
 	`
 	if err := tx.GetContext(ctx, &totalReactions, query, username); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -222,8 +222,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	{
 		query := `
 		WITH reaction_per_livestream AS (
-			SELECT l.id, COUNT(*) AS reaction_count FROM reactions r
-			LEFT JOIN livestreams l ON l.id = r.livestream_id GROUP BY l.id
+			SELECT livestream_id AS id, reaction_count FROM reaction_per_livestream
 		  ), tip_per_livestream AS (
 			SELECT l.id, IFNULL(SUM(lc.tip), 0) AS sum_tip FROM livecomments lc
 			LEFT JOIN livestreams l ON l.id = lc.livestream_id GROUP BY l.id
@@ -253,7 +252,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 
 	// リアクション数
 	var totalReactions int64
-	if err := tx.GetContext(ctx, &totalReactions, "SELECT COUNT(*) FROM livestreams l INNER JOIN reactions r ON r.livestream_id = l.id WHERE l.id = ?", livestreamID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.GetContext(ctx, &totalReactions, "SELECT SUM(r.reaction_count) FROM livestreams l INNER JOIN reaction_per_livestream r ON r.livestream_id = l.id WHERE l.id = ?", livestreamID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to count total reactions: "+err.Error())
 	}
 
