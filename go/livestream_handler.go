@@ -197,12 +197,6 @@ func searchLivestreamsHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	keyTagName := c.QueryParam("tag")
 
-	tx, err := dbConn.BeginTxx(ctx, nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin transaction: "+err.Error())
-	}
-	defer tx.Rollback()
-
 	var livestreamModels []*LivestreamModel
 	if c.QueryParam("tag") != "" {
 		// タグによる取得
@@ -212,7 +206,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query for livestream_tags: "+err.Error())
 		}
 		var keyTaggedLivestreams []*LivestreamTagModel
-		if err := tx.SelectContext(ctx, &keyTaggedLivestreams, query, params...); err != nil {
+		if err := dbConn.SelectContext(ctx, &keyTaggedLivestreams, query, params...); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get keyTaggedLivestreams: "+err.Error())
 		}
 
@@ -228,7 +222,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to construct IN query for livestreams: "+err.Error())
 			}
 
-			if err := tx.SelectContext(ctx, &livestreamModels, query, args...); err != nil {
+			if err := dbConn.SelectContext(ctx, &livestreamModels, query, args...); err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreamModels: "+err.Error())
 			}
 		}
@@ -243,18 +237,14 @@ func searchLivestreamsHandler(c echo.Context) error {
 			query += fmt.Sprintf(" LIMIT %d", limit)
 		}
 
-		if err := tx.SelectContext(ctx, &livestreamModels, query); err != nil {
+		if err := dbConn.SelectContext(ctx, &livestreamModels, query); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 		}
 	}
 
-	livestreams, err := bulkFillLivestreamResponse(ctx, tx, livestreamModels)
+	livestreams, err := bulkFillLivestreamResponse(ctx, dbConn, livestreamModels)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to bulkFillLivestreamRersponse: "+err.Error())
-	}
-
-	if err := tx.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
 	return c.JSON(http.StatusOK, livestreams)
