@@ -117,7 +117,10 @@ func reserveLivestreamHandler(c echo.Context) error {
 	if numEmptySlot > 0 {
 		return echo.NewHTTPError(http.StatusBadRequest, "予約できません")
 	}
-	// ロックを解放するためにここでいったんcommitしておく
+
+	if _, err := tx.ExecContext(ctx, "UPDATE reservation_slots SET slot = slot - 1 WHERE (start_at BETWEEN ? AND ?) AND end_at <= ?", req.StartAt, req.EndAt, req.EndAt); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update reservation_slot: "+err.Error())
+	}
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit transaction: "+err.Error())
 	}
@@ -135,20 +138,6 @@ func reserveLivestreamHandler(c echo.Context) error {
 			TagIds:       tagIds,
 		}
 	)
-
-	tx2, err := dbConn.BeginTxx(ctx, nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin transaction: "+err.Error())
-	}
-	defer tx2.Rollback()
-
-	if _, err := tx2.ExecContext(ctx, "UPDATE reservation_slots SET slot = slot - 1 WHERE (start_at BETWEEN ? AND ?) AND end_at <= ?", req.StartAt, req.EndAt, req.EndAt); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update reservation_slot: "+err.Error())
-	}
-
-	if err := tx2.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
-	}
 
 	rs, err := dbConn.NamedExecContext(ctx, "INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, tag_ids, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :tag_ids, :start_at, :end_at)", livestreamModel)
 	if err != nil {
