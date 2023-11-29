@@ -19,7 +19,7 @@ func bulkFillLivecommentResponse(ctx context.Context, db sqlx.QueryerContext, co
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetchUsers: %w", err)
 	}
-	userById, err := bulkFillUserResponse(ctx, db, maps.Values(commentOwners))
+	userById, err := bulkFillUserResponse(ctx, maps.Values(commentOwners))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulkFillUserResponse: %w", err)
 	}
@@ -62,7 +62,7 @@ type ImageModel struct {
 	Hash   string `db:"hash"`
 }
 
-func bulkFillUserResponse(ctx context.Context, db sqlx.QueryerContext, userModels []UserModel) (map[int64]User, error) {
+func bulkFillUserResponse(ctx context.Context, userModels []UserModel) (map[int64]User, error) {
 	if len(userModels) == 0 {
 		return make(map[int64]User), nil
 	}
