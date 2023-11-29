@@ -582,7 +582,7 @@ func bulkFillLivestreamResponse(ctx context.Context, tx sqlx.QueryerContext, liv
 	return livestreams, nil
 }
 
-func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel) (Livestream, error) {
+func fillLivestreamResponse(ctx context.Context, tx sqlx.QueryerContext, livestreamModel LivestreamModel) (Livestream, error) {
 	livestreams, err := bulkFillLivestreamResponse(ctx, tx, []*LivestreamModel{&livestreamModel})
 	if err != nil {
 		return Livestream{}, err
